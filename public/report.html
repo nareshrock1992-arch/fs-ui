@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conference History — FreeSWITCH Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Report-specific styles ─────────────────────────────── */
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .summary-card {
+      background: var(--card-bg, #1a1a2e);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 10px;
+      padding: 16px 18px;
+      text-align: center;
+    }
+    .summary-card .sc-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary, #8899aa);
+      margin-bottom: 6px;
+    }
+    .summary-card .sc-value {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* History list */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .history-item {
+      background: var(--card-bg, #1a1a2e);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 10px;
+      padding: 14px 18px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .history-item:hover {
+      border-color: rgba(99,102,241,0.5);
+      background: rgba(99,102,241,0.05);
+    }
+
+    .hi-left { display: flex; align-items: center; gap: 14px; }
+
+    .hi-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .hi-icon.active  { background: rgba(22,163,74,0.15); }
+    .hi-icon.ended   { background: rgba(99,102,241,0.15); }
+
+    .hi-name  { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+    .hi-meta  { font-size: 12px; color: var(--text-secondary, #8899aa); }
+
+    .hi-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+    .badge-active   { background: rgba(22,163,74,0.15);  color: #16a34a; }
+    .badge-ended    { background: rgba(99,102,241,0.12); color: #818cf8; }
+    .badge-members  { background: rgba(14,165,233,0.12); color: #38bdf8; }
+
+    .btn-view {
+      font-size: 12px;
+      padding: 5px 14px;
+      border-radius: 7px;
+      border: 1px solid rgba(99,102,241,0.4);
+      background: rgba(99,102,241,0.08);
+      color: #818cf8;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .btn-view:hover { background: rgba(99,102,241,0.18); }
+
+    /* ── Detail modal ───────────────────────────────────────── */
+    #report-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 1000;
+      overflow-y: auto;
+      padding: 30px 16px;
+    }
+    #report-modal-overlay.show { display: flex; align-items: flex-start; justify-content: center; }
+
+    #report-modal {
+      background: var(--bg, #0f0f1a);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 820px;
+      padding: 28px 30px;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 18px; right: 18px;
+      background: rgba(255,255,255,0.06);
+      border: none;
+      border-radius: 8px;
+      color: #aaa;
+      font-size: 18px;
+      width: 34px; height: 34px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .modal-sub {
+      font-size: 13px;
+      color: var(--text-secondary, #8899aa);
+      margin-bottom: 22px;
+    }
+
+    /* tabs */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary, #8899aa);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.1s;
+    }
+    .tab-btn.active { color: #818cf8; border-bottom-color: #818cf8; }
+    .tab-btn:hover  { color: #ccc; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Participants table */
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .report-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-secondary, #8899aa);
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+    }
+    .report-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: middle;
+    }
+    .report-table tbody tr:last-child td { border-bottom: none; }
+    .report-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* Timeline events */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .tl-item {
+      display: flex;
+      gap: 14px;
+      padding: 8px 0;
+      position: relative;
+    }
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      left: 16px;
+      top: 32px;
+      bottom: -8px;
+      width: 1px;
+      background: rgba(255,255,255,0.07);
+    }
+    .tl-item:last-child::before { display: none; }
+
+    .tl-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    .tl-dot.join      { background: rgba(22,163,74,0.2); }
+    .tl-dot.leave     { background: rgba(156,163,175,0.15); }
+    .tl-dot.kick      { background: rgba(239,68,68,0.2); }
+    .tl-dot.mute      { background: rgba(234,179,8,0.2); }
+    .tl-dot.unmute    { background: rgba(14,165,233,0.2); }
+    .tl-dot.lock      { background: rgba(251,146,60,0.2); }
+    .tl-dot.unlock    { background: rgba(34,197,94,0.15); }
+    .tl-dot.terminate { background: rgba(239,68,68,0.25); }
+    .tl-dot.create    { background: rgba(99,102,241,0.2); }
+
+    .tl-content { flex: 1; padding-top: 6px; }
+    .tl-title   { font-size: 13px; font-weight: 500; }
+    .tl-time    { font-size: 11px; color: var(--text-secondary, #8899aa); margin-top: 2px; }
+
+    /* Search / filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .filter-bar input, .filter-bar select {
+      font-size: 13px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border, rgba(255,255,255,0.1));
+      background: var(--card-bg, #1a1a2e);
+      color: inherit;
+    }
+    .filter-bar input { flex: 1; min-width: 160px; }
+
+    .duration-pill {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(14,165,233,0.1);
+      color: #38bdf8;
+    }
+
+    /* Export button */
+    .btn-export {
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(99,102,241,0.35);
+      background: rgba(99,102,241,0.08);
+      color: #818cf8;
+      cursor: pointer;
+    }
+    .btn-export:hover { background: rgba(99,102,241,0.18); }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .pagination button {
+      padding: 5px 12px;
+      font-size: 13px;
+      border-radius: 7px;
+      border: 1px solid var(--border, rgba(255,255,255,0.1));
+      background: transparent;
+      color: var(--text-secondary, #8899aa);
+      cursor: pointer;
+    }
+    .pagination button.active-page, .pagination button:hover {
+      background: rgba(99,102,241,0.12);
+      color: #818cf8;
+      border-color: rgba(99,102,241,0.35);
+    }
+    .pagination button:disabled { opacity: 0.35; pointer-events: none; }
+
+    .empty-report {
+      text-align: center;
+      padding: 48px 0;
+      color: var(--text-secondary, #8899aa);
+    }
+    .empty-report .icon { font-size: 40px; display: block; margin-bottom: 10px; }
+
+    /* ── Dark mode variable overrides ───────────────────────── */
+    body:not(.dark-mode) {
+      --card-bg: #fff;
+      --bg: #f8f9fb;
+      --border: rgba(0,0,0,0.08);
+      --text-secondary: #6b7280;
+    }
+    body.dark-mode {
+      --card-bg: #1a1a2e;
+      --bg: #0f0f1a;
+      --border: rgba(255,255,255,0.08);
+      --text-secondary: #8899aa;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast container (shared from style.css / app.js) -->
+<div id="toast-container"></div>
+
+<!-- ── Modal Overlay ────────────────────────────────────────── -->
+<div id="report-modal-overlay">
+  <div id="report-modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-title" id="modal-conf-name">—</div>
+    <div class="modal-sub"  id="modal-conf-meta">—</div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+      <button class="tab-btn"        onclick="switchTab('participants')">Participants</button>
+      <button class="tab-btn"        onclick="switchTab('timeline')">Timeline</button>
+    </div>
+
+    <!-- Overview tab -->
+    <div class="tab-panel active" id="tab-overview">
+      <div class="stats-summary" id="modal-stats" style="margin-bottom:20px;"></div>
+
+      <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; opacity:0.8;">Participant Summary</h3>
+      <div id="overview-participant-list"></div>
+    </div>
+
+    <!-- Participants tab -->
+    <div class="tab-panel" id="tab-participants">
+      <div style="overflow-x:auto;">
+        <table class="report-table" id="participants-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Member ID</th>
+              <th>Joined</th>
+              <th>Left</th>
+              <th>Duration</th>
+              <th>Muted?</th>
+              <th>Kicked?</th>
+            </tr>
+          </thead>
+          <tbody id="participants-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Timeline tab -->
+    <div class="tab-panel" id="tab-timeline">
+      <div class="timeline" id="timeline-list"></div>
+    </div>
+
+    <!-- Export -->
+    <div style="display:flex; justify-content:flex-end; margin-top:24px; gap:8px;">
+      <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn-export" onclick="printReport()">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Sidebar (same as index.html) ─────────────────────────── -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <img src="logo.png" alt="Logo" class="logo">
+    <span class="greeting">Dhaivk Conference</span>
+    <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+  </div>
+
+  <div class="menu-item" id="menu-user" onclick="toggleMenu('userMenu','menu-user')">
+    User Management <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="userMenu">
+    <div onclick="location.href='index.html#addUser'">➕ Add User</div>
+    <div onclick="location.href='index.html#userList'">👥 User List</div>
+    <div onclick="location.href='index.html#registered'">📡 Registered Users</div>
+  </div>
+
+  <div class="menu-item" id="menu-conf" onclick="toggleMenu('conferenceMenu','menu-conf')">
+    Conferences <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="conferenceMenu">
+    <div onclick="location.href='index.html'">🎛 Manage</div>
+    <div onclick="location.href='index.html'">📊 Monitor</div>
+    <div class="active" onclick="location.href='report.html'">📋 History Report</div>
+  </div>
+</div>
+
+<!-- ── Content ───────────────────────────────────────────────── -->
+<div class="content">
+
+  <div class="report-header">
+    <div>
+      <h2 style="margin:0 0 4px;">Conference History</h2>
+      <p style="margin:0; font-size:13px; color:var(--text-secondary);">Full audit trail of all conference sessions and participant activity.</p>
+    </div>
+    <button class="btn btn-refresh" onclick="loadHistory()">↻ Refresh</button>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="stats-summary" id="global-stats">
+    <div class="summary-card">
+      <div class="sc-label">Total sessions</div>
+      <div class="sc-value" id="gs-total">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">Active now</div>
+      <div class="sc-value" id="gs-active" style="color:#16a34a;">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">Total participants</div>
+      <div class="sc-value" id="gs-part">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">Avg duration (min)</div>
+      <div class="sc-value" id="gs-avg">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">Longest (min)</div>
+      <div class="sc-value" id="gs-max">—</div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <input id="search-input" type="text" placeholder="🔍  Search conference name…" oninput="filterHistory()">
+    <select id="status-filter" onchange="filterHistory()">
+      <option value="">All statuses</option>
+      <option value="active">Active</option>
+      <option value="ended">Ended</option>
+    </select>
+  </div>
+
+  <!-- List -->
+  <div class="history-list" id="history-list">
+    <div class="empty-report">
+      <span class="icon">📡</span>
+      Loading conference history…
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" id="pagination"></div>
+
+</div>
+
+<!-- Reuse shared app.js utilities (toast, dark-mode, etc.) -->
+<script src="app.js"></script>
+<script>
+/* ── report.js inlined ────────────────────────────────────── */
+
+let _allConferences   = [];
+let _filteredConfs    = [];
+let _currentPage      = 1;
+const PAGE_SIZE       = 15;
+let _currentReportData = null; // { conference, participants, events }
+
+// ── Load & render history list ───────────────────────────────
+async function loadHistory() {
+  try {
+    const res  = await fetch('/api/history/conferences?limit=200');
+    const data = await res.json();
+    _allConferences = data.conferences || [];
+
+    // stats
+    const s = data.stats || {};
+    document.getElementById('gs-total').textContent  = s.total  ?? '—';
+    document.getElementById('gs-active').textContent = s.active ?? '—';
+    document.getElementById('gs-part').textContent   = s.totalPart ?? '—';
+    document.getElementById('gs-avg').textContent    = s.avgDuration ?? '—';
+    document.getElementById('gs-max').textContent    = s.maxDuration ?? '—';
+
+    filterHistory();
+  } catch (err) {
+    toast('error', 'Failed to load history', err.message);
+    document.getElementById('history-list').innerHTML =
+      `<div class="empty-report"><span class="icon">❌</span>Could not reach /api/history/conferences</div>`;
+  }
+}
+
+function filterHistory() {
+  const q      = document.getElementById('search-input').value.trim().toLowerCase();
+  const status = document.getElementById('status-filter').value;
+
+  _filteredConfs = _allConferences.filter(c => {
+    const matchName   = !q      || c.name.toLowerCase().includes(q);
+    const matchStatus = !status ||
+      (status === 'active' && !c.endedAt) ||
+      (status === 'ended'  &&  c.endedAt);
+    return matchName && matchStatus;
+  });
+  _currentPage = 1;
+  renderPage();
+}
+
+function renderPage() {
+  const start  = (_currentPage - 1) * PAGE_SIZE;
+  const end    = start + PAGE_SIZE;
+  const page   = _filteredConfs.slice(start, end);
+  const list   = document.getElementById('history-list');
+
+  if (!page.length) {
+    list.innerHTML = `<div class="empty-report"><span class="icon">🗂️</span>No conferences found.</div>`;
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = '';
+  page.forEach(c => {
+    const isActive = !c.endedAt;
+    const dur = confDurationStr(c);
+
+    const el = document.createElement('div');
+    el.className = 'history-item';
+    el.innerHTML = `
+      <div class="hi-left">
+        <div class="hi-icon ${isActive ? 'active' : 'ended'}">
+          ${isActive ? '🟢' : '📋'}
+        </div>
+        <div>
+          <div class="hi-name">${escHtml(c.name)}</div>
+          <div class="hi-meta">
+            Started: ${fmtTs(c.startedAt)}
+            ${c.endedAt ? ' · Ended: ' + fmtTs(c.endedAt) : ''}
+            ${dur ? ' · ' + dur : ''}
+          </div>
+        </div>
+      </div>
+      <div class="hi-right">
+        <span class="badge badge-members">👥 ${c.totalMembers || 0}</span>
+        <span class="badge ${isActive ? 'badge-active' : 'badge-ended'}">${isActive ? '🟢 Live' : '✅ Ended'}</span>
+        <button class="btn-view" onclick="openReport(${c.id})">View Report →</button>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+
+  renderPagination();
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(_filteredConfs.length / PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+  let html = `<button ${_currentPage === 1 ? 'disabled' : ''} onclick="goPage(${_currentPage-1})">‹ Prev</button>`;
+  for (let i = 1; i <= totalPages; i++) {
+    html += `<button class="${i===_currentPage?'active-page':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  html += `<button ${_currentPage === totalPages ? 'disabled' : ''} onclick="goPage(${_currentPage+1})">Next ›</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(n) {
+  _currentPage = n;
+  renderPage();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Open detailed report modal ────────────────────────────────
+async function openReport(confId) {
+  try {
+    const res  = await fetch(`/api/history/conferences/${confId}`);
+    const data = await res.json();
+    if (data.error) { toast('error', 'Error', data.error); return; }
+
+    _currentReportData = data;
+    const { conference: c, confDuration, participants, events } = data;
+
+    // Header
+    document.getElementById('modal-conf-name').textContent = c.name;
+    document.getElementById('modal-conf-meta').textContent =
+      `Started ${fmtTs(c.startedAt)}` +
+      (c.endedAt ? ` · Ended ${fmtTs(c.endedAt)}` : ' · Currently active') +
+      ` · Duration: ${secToHms(confDuration)}`;
+
+    // Overview stats
+    const kickCount  = participants.filter(p => p.wasKicked).length;
+    const muteCount  = participants.filter(p => p.wasMuted).length;
+    document.getElementById('modal-stats').innerHTML = `
+      <div class="summary-card">
+        <div class="sc-label">Participants</div>
+        <div class="sc-value">${participants.length}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Peak members</div>
+        <div class="sc-value">${c.peakMembers || 0}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Duration</div>
+        <div class="sc-value" style="font-size:18px;">${secToHms(confDuration)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Muted</div>
+        <div class="sc-value" style="color:#eab308;">${muteCount}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Kicked</div>
+        <div class="sc-value" style="color:#ef4444;">${kickCount}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Events</div>
+        <div class="sc-value">${events.length}</div>
+      </div>
+    `;
+
+    // Overview participant list (compact)
+    const ovList = document.getElementById('overview-participant-list');
+    if (!participants.length) {
+      ovList.innerHTML = '<p style="color:var(--text-secondary); font-size:13px;">No participant data recorded.</p>';
+    } else {
+      ovList.innerHTML = participants.map(p => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px;">
+          <div>
+            <span style="font-weight:600;">${escHtml(p.user || p.memberId)}</span>
+            <span style="color:var(--text-secondary); margin-left:8px; font-size:11px;">ID ${p.memberId}</span>
+          </div>
+          <div style="display:flex; gap:7px; align-items:center;">
+            ${p.wasMuted ? '<span class="badge" style="background:rgba(234,179,8,0.12);color:#eab308;">Muted</span>' : ''}
+            ${p.wasKicked ? '<span class="badge" style="background:rgba(239,68,68,0.12);color:#ef4444;">Kicked</span>' : ''}
+            <span class="duration-pill">${secToHms(p.duration || 0)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Participants table
+    document.getElementById('participants-tbody').innerHTML = participants.length
+      ? participants.map(p => `
+          <tr>
+            <td style="font-weight:500;">${escHtml(p.user || p.memberId)}</td>
+            <td style="color:var(--text-secondary);">${p.memberId}</td>
+            <td>${fmtTs(p.joinedAt)}</td>
+            <td>${p.leftAt ? fmtTs(p.leftAt) : '<span style="color:#16a34a;">Still in</span>'}</td>
+            <td><span class="duration-pill">${secToHms(p.duration || 0)}</span></td>
+            <td>${p.wasMuted ? '🔇 Yes' : '—'}</td>
+            <td>${p.wasKicked ? '✂️ Yes' : '—'}</td>
+          </tr>`)
+          .join('')
+      : '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:20px;">No participant records</td></tr>';
+
+    // Timeline
+    const tlIcons = {
+      join: '📥', leave: '📤', kick: '✂️', mute: '🔇', unmute: '🔈',
+      lock: '🔒', unlock: '🔓', terminate: '⛔', create: '✨', unmute_all: '🔈', mute_all: '🔇'
+    };
+    document.getElementById('timeline-list').innerHTML = events.length
+      ? events.map(e => `
+          <div class="tl-item">
+            <div class="tl-dot ${e.type}">${tlIcons[e.type] || '📌'}</div>
+            <div class="tl-content">
+              <div class="tl-title">${escHtml(e.detail || e.type)} ${e.user ? `<span style="color:var(--text-secondary);font-weight:400;">— ${escHtml(e.user)}</span>` : ''}</div>
+              <div class="tl-time">${fmtTs(e.ts)}</div>
+            </div>
+          </div>`).join('')
+      : '<p style="color:var(--text-secondary);font-size:13px;padding:16px 0;">No events recorded for this session.</p>';
+
+    switchTab('overview');
+    document.getElementById('report-modal-overlay').classList.add('show');
+  } catch (err) {
+    toast('error', 'Failed to load report', err.message);
+  }
+}
+
+function closeModal() {
+  document.getElementById('report-modal-overlay').classList.remove('show');
+  _currentReportData = null;
+}
+
+// close on backdrop click
+document.getElementById('report-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('report-modal-overlay')) closeModal();
+});
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${id}`).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(id)) b.classList.add('active');
+  });
+}
+
+// ── Export CSV ────────────────────────────────────────────────
+function exportCSV() {
+  if (!_currentReportData) return;
+  const { conference: c, participants, events } = _currentReportData;
+
+  // Participants CSV
+  const header = ['User', 'MemberID', 'JoinedAt', 'LeftAt', 'DurationSec', 'WasMuted', 'WasKicked'];
+  const rows   = participants.map(p => [
+    p.user || p.memberId, p.memberId,
+    p.joinedAt, p.leftAt || '',
+    p.duration || 0, p.wasMuted ? 'Yes' : 'No', p.wasKicked ? 'Yes' : 'No'
+  ]);
+
+  const csv = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${c.name}_participants_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('success', 'CSV exported', `${participants.length} rows`);
+}
+
+function printReport() {
+  if (!_currentReportData) return;
+  window.print();
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function fmtTs(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleString(undefined, {
+    year:'numeric', month:'short', day:'numeric',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+
+function secToHms(s) {
+  if (!s && s !== 0) return '—';
+  s = Math.round(s);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${m}m ${sec}s`;
+  if (m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
+}
+
+function confDurationStr(c) {
+  if (!c.startedAt) return '';
+  const end = c.endedAt ? new Date(c.endedAt) : new Date();
+  const sec = Math.round((end - new Date(c.startedAt)) / 1000);
+  return secToHms(sec);
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+document.getElementById('userMenu').style.display       = 'block';
+document.getElementById('conferenceMenu').style.display = 'block';
+document.getElementById('menu-user').classList.add('open');
+document.getElementById('menu-conf').classList.add('open');
+
+loadHistory();
+// Auto-refresh every 30s for active conferences
+setInterval(loadHistory, 30000);
+</script>
+</body>
+</html>

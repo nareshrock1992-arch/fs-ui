@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FreeSWITCH Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Confirm dialog -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <h3 id="confirm-title">Confirm action</h3>
+    <p id="confirm-msg"></p>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="confirmResolve(false)">Cancel</button>
+      <button class="btn-danger-confirm" id="confirm-ok-btn" onclick="confirmResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <img src="logo.png" alt="Logo" class="logo">
+    <span class="greeting">Dhaivk Conference</span>
+    <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+  </div>
+
+  <!-- User Management -->
+  <div class="menu-item" id="menu-user" onclick="toggleMenu('userMenu', 'menu-user')">
+    User Management <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="userMenu">
+    <div onclick="showSection('addUserSection')">➕ Add User</div>
+    <div onclick="showSection('userListSection')">👥 User List</div>
+    <div onclick="showSection('registeredSection')">📡 Registered Users</div>
+  </div>
+
+  <!-- Conference Management -->
+  <div class="menu-item" id="menu-conf" onclick="toggleMenu('conferenceMenu', 'menu-conf')">
+    Conferences <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="conferenceMenu">
+    <div onclick="showSection('addConferenceSection')">➕ New Conference</div>
+    <div onclick="showSection('manageConferenceSection')">🎛 Manage</div>
+    <div onclick="showSection('monitorConferenceSection')">📊 Monitor</div>
+    <div onclick="location.href='report.html'">📋 History Report</div>  <!-- ADD THIS -->  
+</div>
+</div>
+
+<!-- Content -->
+<div class="content">
+
+  <!-- Add User -->
+  <section id="addUserSection" class="section">
+    <h2>Add User</h2>
+    <label for="username">Username / Extension</label>
+    <input id="username" type="text" placeholder="e.g. 1001">
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="SIP password">
+    <button onclick="addUser()">Add User</button>
+  </section>
+
+  <!-- User List -->
+  <section id="userListSection" class="section">
+    <h2>User List</h2>
+    <div class="section-toolbar">
+      <button class="btn btn-refresh" onclick="loadUsers()" style="margin-top:0;">↻ Refresh</button>
+    </div>
+    <div class="table-container">
+      <table id="users-table">
+        <thead><tr><th>Username</th><th>Extension</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Registered Users -->
+  <section id="registeredSection" class="section">
+    <h2>Registered SIP Users</h2>
+    <div class="section-toolbar">
+      <button class="btn btn-refresh" onclick="loadRegistrations()" style="margin-top:0;">↻ Refresh</button>
+    </div>
+    <div class="table-container">
+      <table id="fs-table">
+        <thead>
+          <tr>
+            <th>User</th><th>Host</th><th>Contact</th><th>Agent</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Add Conference -->
+  <section id="addConferenceSection" class="section">
+    <h2>New Conference</h2>
+    <label for="confName">Conference Name</label>
+    <input id="confName" type="text" placeholder="e.g. meeting-room-1">
+    <label for="confExtension">Extension to Dial In</label>
+    <input id="confExtension" type="text" placeholder="e.g. 3000">
+    <button onclick="createConference()">Create Conference</button>
+  </section>
+
+  <!-- Manage Conferences -->
+  <section id="manageConferenceSection" class="section">
+    <h2>Manage Conferences</h2>
+    <div class="section-toolbar">
+      <div>
+        <label for="confFilter" style="margin-top:0; display:inline; text-transform:none; font-size:12px; color:var(--text-secondary);">Filter:</label>
+        <select id="confFilter" onchange="loadConferences()" style="margin-left:6px; width:auto;">
+          <option value="">— All conferences —</option>
+        </select>
+      </div>
+      <button class="btn btn-refresh" onclick="loadConferences()" style="margin-top:0;">↻ Refresh</button>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:38%">Participant</th>
+            <th style="width:14%">Status</th>
+            <th style="width:14%">Volume</th>
+            <th style="width:14%">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="conferenceList"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Monitor -->
+  <section id="monitorConferenceSection" class="section">
+    <h2>Conference Monitor</h2>
+    <div class="section-toolbar">
+      <button class="btn btn-refresh" onclick="monitorConferences()" style="margin-top:0;">↻ Refresh</button>
+      <span id="monitor-updated" style="font-size:11px; color:var(--text-muted);"></span>
+    </div>
+    <div class="stats-grid" id="conferenceStats">
+      <div class="empty-state"><span class="icon">📡</span>No active conferences</div>
+    </div>
+  </section>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>

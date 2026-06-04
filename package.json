@@ -1,0 +1,27 @@
+{
+  "name": "fs-ui",
+  "version": "1.0.0",
+  "description": "FreeSWITCH Dashboard UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "freeswitch",
+    "dashboard",
+    "sip",
+    "ui"
+  ],
+  "author": "Naresh",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "express-session": "^1.19.0",
+    "modesl": "^1.2.1",
+    "pg": "^8.21.0",
+    "winston": "^3.18.3"
+  }
+}
