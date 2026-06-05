@@ -121,6 +121,7 @@ async function addUser() {
     const res  = await fetch('/api/users/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ username, password })
     });
     const text = await res.text();
@@ -139,7 +140,7 @@ async function addUser() {
 
 async function loadUsers() {
   try {
-    const res   = await fetch('/api/users/list');
+    const res   = await fetch('/api/users/list', { credentials: 'include' });
     const users = await res.json();
     const tbody = document.querySelector('#users-table tbody');
     tbody.innerHTML = '';
@@ -168,7 +169,7 @@ async function loadUsers() {
 // ── Registrations ─────────────────────────────────────────────
 async function loadRegistrations() {
   try {
-    const res     = await fetch('/api/registrations');
+    const res     = await fetch('/api/registrations', { credentials: 'include' });
     const xmlText = await res.text();
     const parser  = new DOMParser();
     const xmlDoc  = parser.parseFromString(xmlText, 'application/xml');
@@ -209,7 +210,7 @@ async function loadRegistrations() {
 
 // ── Conferences: shared data fetch ───────────────────────────
 async function fetchConferenceData() {
-  const res  = await fetch('/api/conferences/list');
+  const res  = await fetch('/api/conferences/list', { credentials: 'include' });
   const data = await res.json();
   return data.conferences || [];
 }
@@ -425,6 +426,7 @@ async function createConference() {
     const res  = await fetch('/api/conferences/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ name, extension })
     });
     const data = await res.json();
@@ -447,6 +449,7 @@ async function kickMember(conferenceName, memberId) {
   try {
     const res  = await fetch('/api/conferences/kick', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName, memberId })
     });
     const data = await res.json();
@@ -466,6 +469,7 @@ async function muteMember(conferenceName, memberId) {
   try {
     const res  = await fetch('/api/conferences/mute', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName, memberId })
     });
     const data = await res.json();
@@ -485,6 +489,7 @@ async function unmuteMember(conferenceName, memberId) {
   try {
     const res  = await fetch('/api/conferences/unmute', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName, memberId })
     });
     const data = await res.json();
@@ -506,6 +511,7 @@ async function muteAll(conferenceName) {
   try {
     const res  = await fetch('/api/conferences/muteall', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName })
     });
     const data = await res.json();
@@ -527,6 +533,7 @@ async function unmuteAll(conferenceName) {
   try {
     const res  = await fetch('/api/conferences/unmuteall', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName })
     });
     const data = await res.json();
@@ -550,6 +557,7 @@ async function toggleLock(conferenceName, isCurrentlyLocked) {
   try {
     const res  = await fetch(`/api/conferences/${action}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName })
     });
     const data = await res.json();
@@ -575,6 +583,7 @@ async function terminateConference(conferenceName) {
   try {
     const res  = await fetch('/api/conferences/terminate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName })
     });
     const data = await res.json();
@@ -596,6 +605,7 @@ async function setVolume(conferenceName, memberId, level) {
   try {
     const res  = await fetch('/api/conferences/volume', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ conferenceName, memberId, level: parseInt(level) })
     });
     const data = await res.json();

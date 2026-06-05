@@ -66,7 +66,13 @@ success:false
 req.session.user = username;
 req.session.isAdmin = !!user.isAdmin;
 
-res.json({ success: true, isAdmin: !!user.isAdmin });
+// Save session before responding
+req.session.save(err => {
+  if (err) {
+    return res.status(500).json({ success: false, error: 'Session error' });
+  }
+  res.json({ success: true, isAdmin: !!user.isAdmin, redirect: '/' });
+});
 
 });
 
