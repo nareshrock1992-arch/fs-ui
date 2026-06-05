@@ -83,15 +83,31 @@ function requireLogin(req, res, next) {
   res.redirect('/login.html');
 }
 
-// Serve public files (login page is accessible without auth)
-app.use('/login.html', express.static(path.join(__dirname, 'public'), { index: false }));
-app.use('/login.js', express.static(path.join(__dirname, 'public'), { index: false }));
-app.use('/style.css', express.static(path.join(__dirname, 'public'), { index: false }));
-app.use('/logo.png', express.static(path.join(__dirname, 'public'), { index: false }));
+// Serve login page and its assets without auth
+const publicDir = path.join(__dirname, 'public');
+const loginFile = path.join(publicDir, 'login.html');
+
+function sendLogin(req, res) {
+  res.sendFile(loginFile);
+}
+
+app.get('/login.html', sendLogin);
+app.head('/login.html', sendLogin);
+app.get('/login.html/', sendLogin);
+app.head('/login.html/', sendLogin);
+app.get('/login.js', (req, res) => {
+  res.sendFile(path.join(publicDir, 'login.js'));
+});
+app.get('/style.css', (req, res) => {
+  res.sendFile(path.join(publicDir, 'style.css'));
+});
+app.get('/logo.png', (req, res) => {
+  res.sendFile(path.join(publicDir, 'logo.png'));
+});
 
 // Protect all other static files with login requirement
 app.use(requireLogin);
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public'), { redirect: false }));
 
 // ── Routes ────────────────────────────────────────────────────
 app.use('/api/users',         requireLogin, require('./routes/users'));
