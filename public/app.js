@@ -707,6 +707,85 @@ function stopAutoRefresh() {
   if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
 }
 
+// ── Logout ────────────────────────────────────────────────────
+async function logout() {
+  try {
+    const res = await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (res.ok) {
+      toast('success', 'Logged out', 'Redirecting to login...');
+      setTimeout(() => {
+        window.location.href = '/login.html';
+      }, 1500);
+    }
+  } catch (err) {
+    toast('error', 'Logout failed', err.message);
+  }
+}
+
+// ── Admin Users ───────────────────────────────────────────────
+async function loadAdminUsers() {
+  try {
+    const res = await fetch('/api/auth/users', { credentials: 'include' });
+    const users = await res.json();
+    const tbody = document.querySelector('#admin-table tbody');
+    tbody.innerHTML = '';
+    if (!users.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 2;
+      td.innerHTML = '<div class="empty-state"><span class="icon">👤</span>No users</div>';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+    users.forEach(u => {
+      const tr = document.createElement('tr');
+      const tdUser = document.createElement('td'); tdUser.textContent = u.username || '';
+      const tdAdmin = document.createElement('td'); tdAdmin.textContent = u.isAdmin ? '✅ Admin' : '❌ User';
+      tr.appendChild(tdUser);
+      tr.appendChild(tdAdmin);
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    toast('error', 'Failed to load admin users', err.message);
+  }
+}
+
+async function createAdminUser() {
+  const username = document.getElementById('adminUsername').value.trim();
+  const password = document.getElementById('adminPassword').value.trim();
+  if (!username || !password) {
+    toast('warn', 'Missing fields', 'Please enter both username and password.');
+    return;
+  }
+  if (password.length < 6) {
+    toast('warn', 'Weak password', 'Password must be at least 6 characters.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username, password, isAdmin: true })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Admin user created', `${username} added as admin.`);
+      document.getElementById('adminUsername').value = '';
+      document.getElementById('adminPassword').value = '';
+      loadAdminUsers();
+    } else {
+      toast('error', 'Failed to create admin', data.error || 'Unknown error');
+    }
+  } catch (err) {
+    toast('error', 'Network error', err.message);
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────
 window.onload = () => {
   // Auto-open menus

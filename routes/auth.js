@@ -80,7 +80,7 @@ req.session.save(err => {
 // Register new user (protected)
 // Authorization: either an admin session (req.session.isAdmin) or a matching ADMIN_TOKEN env var
 router.post('/register', async (req, res) => {
-	const { username, password } = req.body;
+	const { username, password, isAdmin } = req.body;
 
 	// Basic validation
 	if (!username || !password) return res.status(400).json({ success: false, error: 'Missing username or password' });
@@ -97,7 +97,7 @@ router.post('/register', async (req, res) => {
 	if (users.find(u => u.username === username)) return res.status(409).json({ success: false, error: 'User exists' });
 
 	const hash = await bcrypt.hash(password, 10);
-	const newUser = { username, password: hash, isAdmin: false };
+	const newUser = { username, password: hash, isAdmin: !!isAdmin };
 	users.push(newUser);
 	try {
 		writeUsersSync(users);
@@ -120,6 +120,14 @@ success:true
 
 });
 
+});
+
+// Get list of admin users
+router.get('/users', async (req, res) => {
+	const users = loadUsersSync();
+	// Return only username and isAdmin (don't expose password hashes)
+	const safeUsers = users.map(u => ({ username: u.username, isAdmin: u.isAdmin }));
+	res.json(safeUsers);
 });
 
 module.exports=router;
