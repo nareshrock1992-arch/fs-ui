@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Login — FreeSWITCH Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<main class="auth-page" role="main">
+  <div class="auth-card" aria-labelledby="auth-title">
+    <img src="logo.png" alt="Logo" class="auth-logo">
+    <h1 id="auth-title">Sign in</h1>
+    <p class="auth-sub">Access the FreeSWITCH dashboard</p>
+
+    <form id="loginForm" novalidate>
+      <label for="login-username">Username / Extension</label>
+      <input id="login-username" name="username" type="text" autocomplete="username" required>
+
+      <label for="login-password">Password</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+
+      <div class="auth-row">
+        <label class="checkbox">
+          <input id="login-remember" name="remember" type="checkbox">
+          Remember me
+        </label>
+        <a href="#" id="forgot-link">Forgot?</a>
+      </div>
+
+      <div class="auth-actions">
+        <button type="submit" id="login-btn" class="btn">Sign in</button>
+        <a class="btn btn-secondary" href="index.html">Back</a>
+      </div>
+    </form>
+
+    <div id="toast-container"></div>
+    <div class="auth-foot">Powered by FreeSWITCH UI</div>
+  </div>
+</main>
+
+<script src="login.js"></script>
+</body>
+</html>

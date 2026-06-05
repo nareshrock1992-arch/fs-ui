@@ -9,16 +9,16 @@
 <body>
 
 <!-- Toast container -->
-<div id="toast-container"></div>
+<div id="toast-container" aria-live="polite" role="status"></div>
 
 <!-- Confirm dialog -->
-<div id="confirm-overlay">
-  <div id="confirm-box">
+<div id="confirm-overlay" role="dialog" aria-modal="true">
+  <div id="confirm-box" tabindex="-1">
     <h3 id="confirm-title">Confirm action</h3>
     <p id="confirm-msg"></p>
     <div class="confirm-btns">
-      <button class="btn-cancel" onclick="confirmResolve(false)">Cancel</button>
-      <button class="btn-danger-confirm" id="confirm-ok-btn" onclick="confirmResolve(true)">Confirm</button>
+      <button type="button" class="btn-cancel" onclick="confirmResolve(false)">Cancel</button>
+      <button type="button" class="btn-danger-confirm" id="confirm-ok-btn" onclick="confirmResolve(true)">Confirm</button>
     </div>
   </div>
 </div>
@@ -28,14 +28,14 @@
   <div class="sidebar-header">
     <img src="logo.png" alt="Logo" class="logo">
     <span class="greeting">Dhaivk Conference</span>
-    <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+    <button type="button" class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
   </div>
 
   <!-- User Management -->
   <div class="menu-item" id="menu-user" onclick="toggleMenu('userMenu', 'menu-user')">
     User Management <span class="arrow">▾</span>
   </div>
-  <div class="submenu" id="userMenu">
+    <div class="submenu" id="userMenu">
     <div onclick="showSection('addUserSection')">➕ Add User</div>
     <div onclick="showSection('userListSection')">👥 User List</div>
     <div onclick="showSection('registeredSection')">📡 Registered Users</div>
@@ -45,12 +45,12 @@
   <div class="menu-item" id="menu-conf" onclick="toggleMenu('conferenceMenu', 'menu-conf')">
     Conferences <span class="arrow">▾</span>
   </div>
-  <div class="submenu" id="conferenceMenu">
+    <div class="submenu" id="conferenceMenu">
     <div onclick="showSection('addConferenceSection')">➕ New Conference</div>
     <div onclick="showSection('manageConferenceSection')">🎛 Manage</div>
     <div onclick="showSection('monitorConferenceSection')">📊 Monitor</div>
     <div onclick="location.href='report.html'">📋 History Report</div>  <!-- ADD THIS -->  
-</div>
+  </div>
 </div>
 
 <!-- Content -->
@@ -63,14 +63,14 @@
     <input id="username" type="text" placeholder="e.g. 1001">
     <label for="password">Password</label>
     <input id="password" type="password" placeholder="SIP password">
-    <button onclick="addUser()">Add User</button>
+    <button type="button" onclick="addUser()">Add User</button>
   </section>
 
   <!-- User List -->
   <section id="userListSection" class="section">
     <h2>User List</h2>
     <div class="section-toolbar">
-      <button class="btn btn-refresh" onclick="loadUsers()" style="margin-top:0;">↻ Refresh</button>
+      <button type="button" class="btn btn-refresh" onclick="loadUsers()" style="margin-top:0;">↻ Refresh</button>
     </div>
     <div class="table-container">
       <table id="users-table">
@@ -84,7 +84,7 @@
   <section id="registeredSection" class="section">
     <h2>Registered SIP Users</h2>
     <div class="section-toolbar">
-      <button class="btn btn-refresh" onclick="loadRegistrations()" style="margin-top:0;">↻ Refresh</button>
+      <button type="button" class="btn btn-refresh" onclick="loadRegistrations()" style="margin-top:0;">↻ Refresh</button>
     </div>
     <div class="table-container">
       <table id="fs-table">
@@ -118,7 +118,7 @@
           <option value="">— All conferences —</option>
         </select>
       </div>
-      <button class="btn btn-refresh" onclick="loadConferences()" style="margin-top:0;">↻ Refresh</button>
+      <button type="button" class="btn btn-refresh" onclick="loadConferences()" style="margin-top:0;">↻ Refresh</button>
     </div>
     <div class="table-container">
       <table>
@@ -139,7 +139,7 @@
   <section id="monitorConferenceSection" class="section">
     <h2>Conference Monitor</h2>
     <div class="section-toolbar">
-      <button class="btn btn-refresh" onclick="monitorConferences()" style="margin-top:0;">↻ Refresh</button>
+      <button type="button" class="btn btn-refresh" onclick="monitorConferences()" style="margin-top:0;">↻ Refresh</button>
       <span id="monitor-updated" style="font-size:11px; color:var(--text-muted);"></span>
     </div>
     <div class="stats-grid" id="conferenceStats">

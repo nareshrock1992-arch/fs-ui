@@ -31,14 +31,35 @@ function toast(type, title, msg = '', duration = 3500) {
 
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
-  el.innerHTML = `
-    <span class="toast-icon">${icons[type]}</span>
-    <div class="toast-body">
-      <div class="toast-title">${title}</div>
-      ${msg ? `<div class="toast-msg">${msg}</div>` : ''}
-    </div>
-    <button class="toast-close" onclick="dismissToast(this.parentElement)">×</button>
-  `;
+
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'toast-icon';
+  iconSpan.textContent = icons[type];
+
+  const bodyDiv = document.createElement('div');
+  bodyDiv.className = 'toast-body';
+
+  const titleDiv = document.createElement('div');
+  titleDiv.className = 'toast-title';
+  titleDiv.textContent = title;
+  bodyDiv.appendChild(titleDiv);
+
+  if (msg) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'toast-msg';
+    msgDiv.textContent = msg;
+    bodyDiv.appendChild(msgDiv);
+  }
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'toast-close';
+  closeBtn.type = 'button';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', () => dismissToast(el));
+
+  el.appendChild(iconSpan);
+  el.appendChild(bodyDiv);
+  el.appendChild(closeBtn);
   container.appendChild(el);
 
   if (duration > 0) {
@@ -97,7 +118,11 @@ async function addUser() {
     return;
   }
   try {
-    const res  = await fetch(`/api/users/add?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`);
+    const res  = await fetch('/api/users/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
     const text = await res.text();
     if (res.ok) {
       toast('success', 'User created', text);
@@ -119,12 +144,20 @@ async function loadUsers() {
     const tbody = document.querySelector('#users-table tbody');
     tbody.innerHTML = '';
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="2"><div class="empty-state"><span class="icon">👤</span>No users configured</div></td></tr>';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 2;
+      td.innerHTML = '<div class="empty-state"><span class="icon">👤</span>No users configured</div>';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
       return;
     }
     users.forEach(u => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${u.username}</td><td>${u.extension}</td>`;
+      const tdUser = document.createElement('td'); tdUser.textContent = u.username || '';
+      const tdExt  = document.createElement('td'); tdExt.textContent  = u.extension || '';
+      tr.appendChild(tdUser);
+      tr.appendChild(tdExt);
       tbody.appendChild(tr);
     });
   } catch (err) {
@@ -143,7 +176,11 @@ async function loadRegistrations() {
     tbody.innerHTML = '';
     const regs = xmlDoc.getElementsByTagName('registration');
     if (!regs.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><span class="icon">📡</span>No registered users</div></td></tr>';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 5;
+      td.innerHTML = '<div class="empty-state"><span class="icon">📡</span>No registered users</div>';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
       return;
     }
     for (const reg of regs) {
@@ -153,7 +190,16 @@ async function loadRegistrations() {
       const agent   = reg.getElementsByTagName('agent')[0]?.textContent || '-';
       const status  = (reg.getElementsByTagName('status')[0]?.textContent || '-').replace(/\s+/g, ' ').trim();
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${user}</td><td>${host}</td><td>${contact}</td><td>${agent}</td><td>${status}</td>`;
+      const tdUser = document.createElement('td'); tdUser.textContent = user;
+      const tdHost = document.createElement('td'); tdHost.textContent = host;
+      const tdContact = document.createElement('td'); tdContact.textContent = contact;
+      const tdAgent = document.createElement('td'); tdAgent.textContent = agent;
+      const tdStatus = document.createElement('td'); tdStatus.textContent = status;
+      tr.appendChild(tdUser);
+      tr.appendChild(tdHost);
+      tr.appendChild(tdContact);
+      tr.appendChild(tdAgent);
+      tr.appendChild(tdStatus);
       tbody.appendChild(tr);
     }
   } catch (err) {
@@ -217,142 +263,111 @@ async function loadConferences() {
 
     confNames.forEach(confName => {
       const list     = grouped[confName];
-      /*const isLocked = list[0]?.flags?.includes('locked');
-*/
-const isLocked = list[0]?.locked === true;
+      const isLocked = list[0]?.locked === true;
 
-      // ── Conference header row ──────────────────────────────
+      // Conference header row
       const hdr = document.createElement('tr');
       hdr.className = 'conf-header-row';
-      hdr.innerHTML = `
-        <td colspan="4">
-          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-            <div class="conf-title">
-              🎙️ ${confName}
-              <span class="conf-badge">${list.length} member${list.length !== 1 ? 's' : ''}</span>
-              ${isLocked ? '<span class="conf-badge locked">🔒 Locked</span>' : ''}
-            </div>
-            <div class="conf-actions">
-              <button class="btn btn-mute-all"   onclick="muteAll('${confName}')">Mute All</button>
-              <button class="btn btn-mute-all"   onclick="unmuteAll('${confName}')" style="color:var(--accent-success); border-color:rgba(22,163,74,0.2); background:rgba(22,163,74,0.06);">Unmute All</button>
-              <button class="btn btn-lock"       onclick="toggleLock('${confName}', ${isLocked})">${isLocked ? '🔓 Unlock' : '🔒 Lock'}</button>
-              <button class="btn btn-terminate"  onclick="terminateConference('${confName}')">⛔ Terminate</button>
-            </div>
-          </div>
-        </td>
-      `;
+      const td = document.createElement('td'); td.colSpan = 4;
+
+      const container = document.createElement('div');
+      container.style.display = 'flex';
+      container.style.alignItems = 'center';
+      container.style.justifyContent = 'space-between';
+      container.style.flexWrap = 'wrap';
+      container.style.gap = '8px';
+
+      const titleWrap = document.createElement('div');
+      titleWrap.className = 'conf-title';
+      titleWrap.textContent = `🎙️ ${confName}`;
+
+      const badge = document.createElement('span');
+      badge.className = 'conf-badge';
+      badge.textContent = `${list.length} member${list.length !== 1 ? 's' : ''}`;
+      titleWrap.appendChild(badge);
+
+      if (isLocked) {
+        const locked = document.createElement('span');
+        locked.className = 'conf-badge locked';
+        locked.textContent = '🔒 Locked';
+        titleWrap.appendChild(locked);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'conf-actions';
+
+      const btnMuteAll = document.createElement('button'); btnMuteAll.type = 'button'; btnMuteAll.className = 'btn btn-mute-all'; btnMuteAll.textContent = 'Mute All'; btnMuteAll.addEventListener('click', () => muteAll(confName));
+      const btnUnmuteAll = document.createElement('button'); btnUnmuteAll.type = 'button'; btnUnmuteAll.className = 'btn btn-mute-all'; btnUnmuteAll.textContent = 'Unmute All'; btnUnmuteAll.style.color = 'var(--accent-success)'; btnUnmuteAll.style.borderColor = 'rgba(22,163,74,0.2)'; btnUnmuteAll.style.background = 'rgba(22,163,74,0.06)'; btnUnmuteAll.addEventListener('click', () => unmuteAll(confName));
+      const btnLock = document.createElement('button'); btnLock.type = 'button'; btnLock.className = 'btn btn-lock'; btnLock.textContent = isLocked ? '🔓 Unlock' : '🔒 Lock'; btnLock.addEventListener('click', () => toggleLock(confName, isLocked));
+      const btnTerminate = document.createElement('button'); btnTerminate.type = 'button'; btnTerminate.className = 'btn btn-terminate'; btnTerminate.textContent = '⛔ Terminate'; btnTerminate.addEventListener('click', () => terminateConference(confName));
+
+      actions.appendChild(btnMuteAll);
+      actions.appendChild(btnUnmuteAll);
+      actions.appendChild(btnLock);
+      actions.appendChild(btnTerminate);
+
+      container.appendChild(titleWrap);
+      container.appendChild(actions);
+      td.appendChild(container);
+      hdr.appendChild(td);
       tbody.appendChild(hdr);
 
-      // ── Participant rows ──────────────────────────────────
-      
-// ── Participant rows ──────────────────────────────────
-list.forEach(p => {
+      // Participant rows
+      list.forEach(p => {
+        const isMuted = Array.isArray(p.flags) ? !p.flags.includes('speak') : true;
+        const isSpeaking = !!p.isTalking;
 
-  const isMuted =
-      Array.isArray(p.flags)
-          ? !p.flags.includes('speak')
-          : true;
+        const tr = document.createElement('tr');
 
-  const isSpeaking = p.isTalking;
+        // Name cell
+        const tdName = document.createElement('td');
+        if (isSpeaking) {
+          const dot = document.createElement('span'); dot.className = 'speaking-dot'; tdName.appendChild(dot);
+        }
+        const nameSpan = document.createElement('span'); nameSpan.textContent = p.user || 'Unknown'; tdName.appendChild(nameSpan);
 
-  console.log(
-      "Member:",
-      p.memberId,
-      "Flags:",
-      p.flags,
-      "Muted:",
-      isMuted
-  );
+        // Status cell
+        const tdStatus = document.createElement('td');
+        const statusSpan = document.createElement('span');
+        statusSpan.style.fontSize = '11px'; statusSpan.style.fontWeight = '600';
+        statusSpan.style.color = isMuted ? 'var(--accent-danger)' : 'var(--accent-success)';
+        statusSpan.textContent = isMuted ? '🔇 Muted' : (isSpeaking ? '🟢 Speaking' : '🔵 Active');
+        tdStatus.appendChild(statusSpan);
 
-  const tr = document.createElement('tr');
+        // Volume cell
+        const tdVol = document.createElement('td');
+        const volWrap = document.createElement('div'); volWrap.className = 'vol-wrap';
+        volWrap.textContent = '🔊 ';
+        const input = document.createElement('input');
+        input.type = 'range'; input.min = '0'; input.max = '4'; input.step = '1'; input.value = '0'; input.title = 'Volume (0=default)';
+        input.addEventListener('change', () => setVolume(confName, p.memberId, input.value));
+        volWrap.appendChild(input);
+        tdVol.appendChild(volWrap);
 
-  tr.innerHTML = `
-    <td>
-      ${isSpeaking ? '<span class="speaking-dot"></span>' : ''}
-      ${p.user || 'Unknown'}
-    </td>
+        // Actions cell
+        const tdActions = document.createElement('td');
+        const actionsWrap = document.createElement('div');
+        actionsWrap.style.display = 'flex'; actionsWrap.style.gap = '5px'; actionsWrap.style.flexWrap = 'wrap'; actionsWrap.style.alignItems = 'center';
 
-    <td>
-      <span style="
-        font-size:11px;
-        font-weight:600;
-        color:${isMuted
-            ? 'var(--accent-danger)'
-            : 'var(--accent-success)'}">
+        const btnMute = document.createElement('button'); btnMute.type = 'button'; btnMute.className = `btn ${isMuted ? 'btn-muted' : 'btn-mute'}`; btnMute.id = `mute-btn-${confName}-${p.memberId}`;
+        btnMute.textContent = isMuted ? '🔈 Unmute' : '🔇 Mute';
+        btnMute.addEventListener('click', () => {
+          if (isMuted) unmuteMember(confName, p.memberId); else muteMember(confName, p.memberId);
+        });
 
-        ${isMuted
-            ? '🔇 Muted'
-            : isSpeaking
-                ? '🟢 Speaking'
-                : '🔵 Active'}
-      </span>
-    </td>
+        const btnKick = document.createElement('button'); btnKick.type = 'button'; btnKick.className = 'btn btn-kick'; btnKick.textContent = '✂️ Kick'; btnKick.addEventListener('click', () => kickMember(confName, p.memberId));
 
-    <td>
-      <div class="vol-wrap">
-        🔊
-        <input
-          type="range"
-          min="0"
-          max="4"
-          step="1"
-          value="0"
-          title="Volume (0=default)"
-          onchange="setVolume(
-            '${confName}',
-            '${p.memberId}',
-            this.value
-          )">
-      </div>
-    </td>
+        actionsWrap.appendChild(btnMute);
+        actionsWrap.appendChild(btnKick);
+        tdActions.appendChild(actionsWrap);
 
-    <td>
-
-      <div style="
-        display:flex;
-        gap:5px;
-        flex-wrap:wrap;
-        align-items:center;
-      ">
-
-        <button
-          class="btn ${isMuted ? 'btn-muted' : 'btn-mute'}"
-          id="mute-btn-${confName}-${p.memberId}"
-
-          onclick="${
-            isMuted
-            ? `unmuteMember('${confName}','${p.memberId}')`
-            : `muteMember('${confName}','${p.memberId}')`
-          }">
-
-          ${isMuted
-            ? '🔈 Unmute'
-            : '🔇 Mute'}
-
-        </button>
-
-        <button
-          class="btn btn-kick"
-          onclick="kickMember(
-            '${confName}',
-            '${p.memberId}'
-          )">
-
-          ✂️ Kick
-
-        </button>
-
-      </div>
-
-    </td>
-  `;
-
-  tbody.appendChild(tr);
-
-});
-
-
-});
+        tr.appendChild(tdName);
+        tr.appendChild(tdStatus);
+        tr.appendChild(tdVol);
+        tr.appendChild(tdActions);
+        tbody.appendChild(tr);
+      });
+    });
   
 
 /*      const isMuted    = p.flags && p.flags.includes('mute');
