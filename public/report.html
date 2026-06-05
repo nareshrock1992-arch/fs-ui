@@ -499,7 +499,11 @@ async function loadHistory() {
   try {
     const res  = await fetch('/api/history/conferences?limit=200');
     const data = await res.json();
-    _allConferences = data.conferences || [];
+    _allConferences = (data.conferences || []).map(c => ({
+      ...c,
+      startedAt: c.started_at || c.startedAt,
+      endedAt:   c.ended_at   || c.endedAt
+    }));
 
     // stats
     const s = data.stats || {};
@@ -532,10 +536,10 @@ function filterHistory() {
       (status === 'active' && !c.endedAt) ||
       (status === 'ended'  &&  c.endedAt);
     
-    // Date filtering: check against started_at
+    // Date filtering: check against the conference start date
     let matchDate = true;
     if (dateFromMs || dateToMs) {
-      const confStartMs = new Date(c.started_at).getTime();
+      const confStartMs = new Date(c.startedAt || c.started_at).getTime();
       if (dateFromMs && confStartMs < dateFromMs) matchDate = false;
       if (dateToMs && confStartMs > dateToMs) matchDate = false;
     }

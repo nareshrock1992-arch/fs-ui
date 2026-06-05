@@ -243,7 +243,13 @@ function updateFilterDropdown(grouped) {
 // ── Manage Conferences ────────────────────────────────────────
 async function loadConferences() {
   try {
-    const participants = await fetchConferenceData();
+    const [participants, activeData] = await Promise.all([
+      fetchConferenceData(),
+      fetch('/api/conferences/active', { credentials: 'include' })
+        .then(r => r.json())
+        .catch(() => ({ conferences: [] }))
+    ]);
+    const activeMap = new Map((activeData.conferences || []).map(c => [c.name, c]));
     const tbody        = document.getElementById('conferenceList');
     const filterVal    = document.getElementById('confFilter').value;
 
@@ -281,6 +287,18 @@ async function loadConferences() {
       const titleWrap = document.createElement('div');
       titleWrap.className = 'conf-title';
       titleWrap.textContent = `🎙️ ${confName}`;
+
+      const activeInfo = activeMap.get(confName);
+      if (activeInfo) {
+        const elapsed = formatElapsedTime(activeInfo.elapsedMinutes);
+        const timer = document.createElement('span');
+        timer.className = 'conf-timer';
+        timer.textContent = `⏱ ${elapsed}`;
+        timer.style.marginLeft = '10px';
+        timer.style.fontSize = '12px';
+        timer.style.color = 'var(--text-muted)';
+        titleWrap.appendChild(timer);
+      }
 
       const badge = document.createElement('span');
       badge.className = 'conf-badge';
