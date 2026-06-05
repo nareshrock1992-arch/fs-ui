@@ -465,6 +465,9 @@
       <option value="active">Active</option>
       <option value="ended">Ended</option>
     </select>
+    <input id="date-from" type="date" onchange="filterHistory()" title="From date" style="min-width: 120px;">
+    <input id="date-to" type="date" onchange="filterHistory()" title="To date" style="min-width: 120px;">
+    <button type="button" class="btn-export" onclick="clearDateFilters()" style="padding: 6px 10px;">Clear dates</button>
   </div>
 
   <!-- List -->
@@ -517,13 +520,27 @@ async function loadHistory() {
 function filterHistory() {
   const q      = document.getElementById('search-input').value.trim().toLowerCase();
   const status = document.getElementById('status-filter').value;
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
+
+  const dateFromMs = dateFrom ? new Date(dateFrom).getTime() : null;
+  const dateToMs = dateTo ? new Date(dateTo).getTime() + 86400000 : null; // Include entire end date
 
   _filteredConfs = _allConferences.filter(c => {
     const matchName   = !q      || c.name.toLowerCase().includes(q);
     const matchStatus = !status ||
       (status === 'active' && !c.endedAt) ||
       (status === 'ended'  &&  c.endedAt);
-    return matchName && matchStatus;
+    
+    // Date filtering: check against started_at
+    let matchDate = true;
+    if (dateFromMs || dateToMs) {
+      const confStartMs = new Date(c.started_at).getTime();
+      if (dateFromMs && confStartMs < dateFromMs) matchDate = false;
+      if (dateToMs && confStartMs > dateToMs) matchDate = false;
+    }
+    
+    return matchName && matchStatus && matchDate;
   });
   _currentPage = 1;
   renderPage();
@@ -778,6 +795,13 @@ function confDurationStr(c) {
 function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Date filter utilities ─────────────────────────────────────
+function clearDateFilters() {
+  document.getElementById('date-from').value = '';
+  document.getElementById('date-to').value = '';
+  filterHistory();
 }
 
 // ── Init ──────────────────────────────────────────────────────

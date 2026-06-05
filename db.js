@@ -351,6 +351,27 @@ async function getStats() {
   };
 }
 
+async function getActiveConferences() {
+  const res = await query(`
+    SELECT
+      id,
+      name,
+      started_at,
+      EXTRACT(EPOCH FROM (NOW() - started_at)) / 60 AS elapsed_minutes,
+      (SELECT COUNT(*) FROM participants WHERE conference_id = conferences.id AND left_at IS NULL) AS current_members
+    FROM conferences
+    WHERE ended_at IS NULL
+    ORDER BY started_at DESC
+  `);
+  return res.rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    startedAt: r.started_at,
+    elapsedMinutes: parseFloat(r.elapsed_minutes) || 0,
+    currentMembers: parseInt(r.current_members) || 0
+  }));
+}
+
 // ── Exports ───────────────────────────────────────────────────
 module.exports = {
   pool,
@@ -368,7 +389,8 @@ module.exports = {
   getConferenceById,
   getParticipantsByConference,
   getEventsByConference,
-  getStats
+  getStats,
+  getActiveConferences
 };
 
 // ── Run schema bootstrap when called directly ─────────────────

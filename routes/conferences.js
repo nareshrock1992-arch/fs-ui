@@ -55,6 +55,17 @@ router.get('/list', async (req, res) => {
   }
 });
 
+// ── GET /active (with start times) ─────────────────────────────
+router.get('/active', async (req, res) => {
+  try {
+    const activeConfs = await db.getActiveConferences();
+    res.json({ conferences: activeConfs });
+  } catch (err) {
+    logger.error({ action: 'active', error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /create ──────────────────────────────────────────────
 router.post('/create', async (req, res) => {
   const { name, extension } = req.body;

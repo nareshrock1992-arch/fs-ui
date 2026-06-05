@@ -622,6 +622,7 @@ async function setVolume(conferenceName, memberId, level) {
 async function monitorConferences() {
   try {
     const participants = await fetchConferenceData();
+    const activeConfs = await fetch('/api/conferences/active', { credentials: 'include' }).then(r => r.json()).catch(() => ({ conferences: [] }));
     const statsDiv     = document.getElementById('conferenceStats');
     const updatedEl    = document.getElementById('monitor-updated');
 
@@ -636,6 +637,15 @@ async function monitorConferences() {
 
     const grouped = groupParticipants(participants);
     statsDiv.innerHTML = '';
+
+    // Create a map of conference start times
+    const confTimings = {};
+    (activeConfs.conferences || []).forEach(c => {
+      confTimings[c.name] = {
+        startedAt: c.startedAt,
+        elapsedMinutes: c.elapsedMinutes
+      };
+    });
 
     // Summary stat cards
     const totalConfs    = Object.keys(grouped).length;
@@ -667,6 +677,10 @@ async function monitorConferences() {
 
     // Per-conference breakdown
     Object.entries(grouped).forEach(([confName, members]) => {
+      const timing = confTimings[confName] || {};
+      const elapsedMinutes = timing.elapsedMinutes || 0;
+      const elapsedStr = formatElapsedTime(elapsedMinutes);
+
       const card = document.createElement('div');
       card.className = 'stat-card';
       card.style.marginTop = '14px';
@@ -674,6 +688,7 @@ async function monitorConferences() {
         <div class="stat-label">📞 ${confName}</div>
         <div class="stat-value">${members.length}</div>
         <div class="stat-sub">
+          ⏱ ${elapsedStr} · 
           ${members.filter(m => m.isTalking).length} speaking ·
           ${members.filter(m => m.flags && m.flags.includes('hear')).length} muted
         </div>
@@ -688,6 +703,15 @@ async function monitorConferences() {
     toast('error', 'Monitor failed', err.message);
     console.error(err);
   }
+}
+
+function formatElapsedTime(minutes) {
+  const mins = Math.floor(minutes);
+  if (mins < 1) return '< 1 min';
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  return `${hours}h ${remainingMins}m`;
 }
 
 // ── Auto-refresh ──────────────────────────────────────────────
