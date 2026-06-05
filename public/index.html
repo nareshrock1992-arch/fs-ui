@@ -23,6 +23,55 @@
   </div>
 </div>
 
+<!-- Report modal -->
+<div id="report-modal-overlay">
+  <div id="report-modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-title" id="modal-conf-name">—</div>
+    <div class="modal-sub" id="modal-conf-meta">—</div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+      <button class="tab-btn" onclick="switchTab('participants')">Participants</button>
+      <button class="tab-btn" onclick="switchTab('timeline')">Timeline</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-overview">
+      <div class="stats-summary" id="modal-stats" style="margin-bottom:20px;"></div>
+      <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; opacity:0.8;">Participant Summary</h3>
+      <div id="overview-participant-list"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-participants">
+      <div style="overflow-x:auto;">
+        <table class="report-table" id="participants-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Member ID</th>
+              <th>Joined</th>
+              <th>Left</th>
+              <th>Duration</th>
+              <th>Muted?</th>
+              <th>Kicked?</th>
+            </tr>
+          </thead>
+          <tbody id="participants-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-timeline">
+      <div class="timeline" id="timeline-list"></div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:24px; gap:8px;">
+      <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn-export" onclick="printReport()">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
 <!-- Sidebar -->
 <div class="sidebar">
   <div class="sidebar-header">
@@ -39,7 +88,7 @@
     <div onclick="showSection('addConferenceSection')">➕ New Conference</div>
     <div onclick="showSection('manageConferenceSection')">🎛 Manage</div>
     <div onclick="showSection('monitorConferenceSection')">📊 Monitor</div>
-    <div onclick="location.href='report.html'">📋 History Report</div>
+    <div onclick="showSection('reportSection')">📋 History Report</div>
   </div>
 
   <!-- User Management -->
@@ -156,6 +205,54 @@
     <div class="stats-grid" id="conferenceStats">
       <div class="empty-state"><span class="icon">📡</span>No active conferences</div>
     </div>
+  </section>
+
+  <!-- Report History -->
+  <section id="reportSection" class="section">
+    <h2>Conference History</h2>
+    <div class="section-toolbar" style="gap: 12px; flex-wrap: wrap; align-items: center;">
+      <div style="display:flex; gap:10px; flex-wrap: wrap; align-items: center;">
+        <button type="button" class="btn btn-refresh" onclick="loadHistory()" style="margin-top:0;">↻ Refresh</button>
+        <input id="report-search" type="text" placeholder="Search conference name…" oninput="filterHistory()" style="min-width:220px;">
+        <select id="report-status" onchange="filterHistory()">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="ended">Ended</option>
+        </select>
+        <input id="report-date-from" type="date" onchange="filterHistory()" title="From date">
+        <input id="report-date-to" type="date" onchange="filterHistory()" title="To date">
+        <button type="button" class="btn btn-refresh" onclick="clearDateFilters()" style="margin-top:0;">Clear dates</button>
+      </div>
+    </div>
+    <div class="stats-summary report-stats" id="report-global-stats">
+      <div class="summary-card">
+        <div class="sc-label">Total sessions</div>
+        <div class="sc-value" id="report-total">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Active now</div>
+        <div class="sc-value" id="report-active" style="color:#16a34a;">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Total participants</div>
+        <div class="sc-value" id="report-participants">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Avg duration (min)</div>
+        <div class="sc-value" id="report-avg">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Longest (min)</div>
+        <div class="sc-value" id="report-max">—</div>
+      </div>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="empty-report">
+        <span class="icon">📡</span>
+        Loading conference history…
+      </div>
+    </div>
+    <div class="pagination" id="pagination"></div>
   </section>
 
   <!-- Admin Users -->

@@ -103,10 +103,12 @@ function showSection(id) {
   const section = document.getElementById(id);
   if (section) section.style.display = 'block';
 
-  if (id === 'userListSection')         loadUsers();
-  if (id === 'registeredSection')       loadRegistrations();
-  if (id === 'manageConferenceSection') loadConferences();
-  if (id === 'monitorConferenceSection') monitorConferences();
+  if (id === 'userListSection')           loadUsers();
+  if (id === 'registeredSection')         loadRegistrations();
+  if (id === 'manageConferenceSection')   loadConferences();
+  if (id === 'monitorConferenceSection')  monitorConferences();
+  if (id === 'reportSection')             loadHistory();
+  if (id === 'adminSection')              loadAdminUsers();
 }
 
 // ── Users ─────────────────────────────────────────────────────
@@ -730,6 +732,263 @@ function formatElapsedTime(minutes) {
   const hours = Math.floor(mins / 60);
   const remainingMins = mins % 60;
   return `${hours}h ${remainingMins}m`;
+}
+
+// ── Report History ────────────────────────────────────────────
+let _currentPage      = 1;
+const PAGE_SIZE       = 15;
+let _allConferences   = [];
+let _filteredConfs    = [];
+let _currentReportData = null;
+
+async function loadHistory() {
+  try {
+    const res  = await fetch('/api/history/conferences?limit=200', { credentials: 'include' });
+    const data = await res.json();
+
+    _allConferences = (data.conferences || []).map(c => ({
+      ...c,
+      startedAt: c.started_at || c.startedAt,
+      endedAt:   c.ended_at   || c.endedAt
+    }));
+
+    const s = data.stats || {};
+    document.getElementById('report-total').textContent       = s.total  ?? '—';
+    document.getElementById('report-active').textContent      = s.active ?? '—';
+    document.getElementById('report-participants').textContent = s.totalPart ?? '—';
+    document.getElementById('report-avg').textContent         = s.avgDuration ?? '—';
+    document.getElementById('report-max').textContent         = s.maxDuration ?? '—';
+
+    filterHistory();
+  } catch (err) {
+    toast('error', 'Failed to load history', err.message);
+    document.getElementById('history-list').innerHTML =
+      `<div class="empty-report"><span class="icon">❌</span>Could not reach /api/history/conferences</div>`;
+  }
+}
+
+function clearDateFilters() {
+  document.getElementById('report-date-from').value = '';
+  document.getElementById('report-date-to').value   = '';
+  filterHistory();
+}
+
+function filterHistory() {
+  const q      = document.getElementById('report-search').value.trim().toLowerCase();
+  const status = document.getElementById('report-status').value;
+  const dateFrom = document.getElementById('report-date-from').value;
+  const dateTo = document.getElementById('report-date-to').value;
+
+  const dateFromMs = dateFrom ? new Date(dateFrom).getTime() : null;
+  const dateToMs = dateTo ? new Date(dateTo).getTime() + 86400000 : null;
+
+  _filteredConfs = _allConferences.filter(c => {
+    const matchName   = !q || (c.name || '').toLowerCase().includes(q);
+    const matchStatus = !status ||
+      (status === 'active' && !c.endedAt) ||
+      (status === 'ended' && c.endedAt);
+
+    let matchDate = true;
+    if (dateFromMs || dateToMs) {
+      const confStartMs = new Date(c.startedAt || c.started_at).getTime();
+      if (dateFromMs && confStartMs < dateFromMs) matchDate = false;
+      if (dateToMs && confStartMs > dateToMs) matchDate = false;
+    }
+
+    return matchName && matchStatus && matchDate;
+  });
+
+  _currentPage = 1;
+  renderPage();
+}
+
+function renderPage() {
+  const start  = (_currentPage - 1) * PAGE_SIZE;
+  const end    = start + PAGE_SIZE;
+  const page   = _filteredConfs.slice(start, end);
+  const list   = document.getElementById('history-list');
+
+  if (!page.length) {
+    list.innerHTML = `<div class="empty-report"><span class="icon">🗂️</span>No conferences found.</div>`;
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = '';
+  page.forEach(c => {
+    const isActive = !c.endedAt;
+    const dur = confDurationStr(c);
+
+    const el = document.createElement('div');
+    el.className = 'history-item';
+    el.innerHTML = `
+      <div class="hi-left">
+        <div class="hi-icon ${isActive ? 'active' : 'ended'}">
+          ${isActive ? '🟢' : '📋'}
+        </div>
+        <div>
+          <div class="hi-name">${escHtml(c.name)}</div>
+          <div class="hi-meta">
+            Started: ${fmtTs(c.startedAt)}
+            ${c.endedAt ? ' · Ended: ' + fmtTs(c.endedAt) : ''}
+            ${dur ? ' · ' + dur : ''}
+          </div>
+        </div>
+      </div>
+      <div class="hi-right">
+        <span class="badge badge-members">👥 ${c.total_members || c.totalMembers || 0}</span>
+        <span class="badge ${isActive ? 'badge-active' : 'badge-ended'}">${isActive ? '🟢 Live' : '✅ Ended'}</span>
+        <button class="btn-view" onclick="openReport(${c.id})">View Report →</button>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+
+  renderPagination();
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(_filteredConfs.length / PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+  let html = `<button ${_currentPage === 1 ? 'disabled' : ''} onclick="goPage(${_currentPage-1})">‹ Prev</button>`;
+  for (let i = 1; i <= totalPages; i++) {
+    html += `<button class="${i === _currentPage ? 'active-page' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  html += `<button ${_currentPage === totalPages ? 'disabled' : ''} onclick="goPage(${_currentPage+1})">Next ›</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(page) {
+  _currentPage = page;
+  renderPage();
+}
+
+async function openReport(id) {
+  try {
+    const res  = await fetch(`/api/history/conferences/${id}`, { credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Unable to load report');
+
+    const c = data.conference;
+    _currentReportData = data;
+
+    document.getElementById('modal-conf-name').textContent = c.name;
+    document.getElementById('modal-conf-meta').textContent =
+      `${c.startedAt ? 'Started: ' + fmtTs(c.startedAt) : ''}` +
+      `${c.endedAt ? ' · Ended: ' + fmtTs(c.endedAt) : ''}`;
+
+    const stats = document.getElementById('modal-stats');
+    stats.innerHTML = `
+      <div class="summary-card"><div class="sc-label">Total members</div><div class="sc-value">${c.totalMembers || c.total_members || 0}</div></div>
+      <div class="summary-card"><div class="sc-label">Peak members</div><div class="sc-value">${c.peakMembers || c.peak_members || 0}</div></div>
+      <div class="summary-card"><div class="sc-label">Duration</div><div class="sc-value">${confDurationStr(c)}</div></div>
+    `;
+
+    document.getElementById('overview-participant-list').innerHTML =
+      (data.participants || []).map(p => `
+        <div style="padding: 8px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+          <strong>${escHtml(p.user || p.memberId)}</strong> · Joined ${fmtTs(p.joinedAt)} ${p.leftAt ? '· Left ' + fmtTs(p.leftAt) : ''}
+        </div>
+      `).join('') || '<div style="color:var(--text-secondary);">No participants recorded.</div>';
+
+    document.getElementById('participants-tbody').innerHTML =
+      (data.participants || []).map(p => `
+        <tr>
+          <td>${escHtml(p.user || p.memberId)}</td>
+          <td>${escHtml(p.memberId)}</td>
+          <td>${fmtTs(p.joinedAt)}</td>
+          <td>${p.leftAt ? fmtTs(p.leftAt) : '—'}</td>
+          <td>${confDurationStr(p)}</td>
+          <td>${p.wasMuted ? 'Yes' : 'No'}</td>
+          <td>${p.wasKicked ? 'Yes' : 'No'}</td>
+        </tr>
+      `).join('');
+
+    document.getElementById('timeline-list').innerHTML =
+      (data.events || []).map(e => `
+        <div class="tl-item">
+          <div class="tl-dot ${e.type}">${e.type[0] || '📌'}</div>
+          <div class="tl-content">
+            <div class="tl-title">${escHtml(e.detail || e.type)} ${e.user ? `<span style="color:var(--text-secondary);font-weight:400;">— ${escHtml(e.user)}</span>` : ''}</div>
+            <div class="tl-time">${fmtTs(e.ts)}</div>
+          </div>
+        </div>
+      `).join('') || '<p style="color:var(--text-secondary);font-size:13px;padding:16px 0;">No events recorded for this session.</p>';
+
+    switchTab('overview');
+    document.getElementById('report-modal-overlay').classList.add('show');
+  } catch (err) {
+    toast('error', 'Failed to load report', err.message);
+  }
+}
+
+function closeModal() {
+  document.getElementById('report-modal-overlay').classList.remove('show');
+  _currentReportData = null;
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${id}`).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(id)) b.classList.add('active');
+  });
+}
+
+function exportCSV() {
+  if (!_currentReportData) return;
+  const { participants } = _currentReportData;
+  const header = ['User', 'MemberID', 'JoinedAt', 'LeftAt', 'DurationSec', 'WasMuted', 'WasKicked'];
+  const rows = (participants || []).map(p => [
+    p.user || p.memberId, p.memberId,
+    p.joinedAt, p.leftAt || '',
+    p.duration || 0, p.wasMuted ? 'Yes' : 'No', p.wasKicked ? 'Yes' : 'No'
+  ]);
+  const lines = [header.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `conference-report-${_currentReportData.conference.id || Date.now()}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function printReport() {
+  if (!document.getElementById('report-modal-overlay').classList.contains('show')) return;
+  window.print();
+}
+
+function secToHms(sec) {
+  const s = Number(sec) || 0;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  return `${h ? h + 'h ' : ''}${m ? m + 'm ' : ''}${r ? r + 's' : ''}`.trim() || '0s';
+}
+
+function fmtTs(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (isNaN(date)) return '—';
+  return date.toLocaleString();
+}
+
+function escHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function confDurationStr(c) {
+  if (!c || !c.startedAt) return '';
+  const end = c.endedAt ? new Date(c.endedAt) : new Date();
+  const sec = Math.round((end - new Date(c.startedAt)) / 1000);
+  return secToHms(sec);
 }
 
 // ── Auto-refresh ──────────────────────────────────────────────
