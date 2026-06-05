@@ -52,13 +52,15 @@
     <div onclick="location.href='report.html'">📋 History Report</div>
   </div>
 
-  <!-- Settings -->
-  <div class="menu-item" id="menu-settings" onclick="toggleMenu('settingsMenu', 'menu-settings')">
-    ⚙️ Settings <span class="arrow">▾</span>
-  </div>
+  <!-- Sidebar Footer (Settings) -->
+  <div class="sidebar-footer">
+    <div class="menu-item" id="menu-settings" onclick="toggleMenu('settingsMenu', 'menu-settings')">
+      ⚙️ Settings <span class="arrow">▾</span>
+    </div>
     <div class="submenu" id="settingsMenu">
-    <div onclick="showSection('adminSection')">👤 Admin Users</div>
-    <div onclick="logout()" style="color: var(--accent-danger);">🚪 Logout</div>
+      <div onclick="showSection('adminSection')">👤 Admin Users</div>
+      <div onclick="logout()" style="color: var(--accent-danger);">🚪 Logout</div>
+    </div>
   </div>
 </div>
 

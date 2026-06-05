@@ -124,6 +124,7 @@ select:focus { border-color: var(--border-focus); outline: none; }
   flex-direction: column;
   transition: background var(--transition);
   overflow-y: auto;
+  height: 100vh;
 }
 
 .sidebar-header {
@@ -132,6 +133,12 @@ select:focus { border-color: var(--border-focus); outline: none; }
   padding: 14px 12px;
   gap: 10px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  border-top: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
 }
 
