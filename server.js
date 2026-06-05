@@ -53,7 +53,6 @@ db.initSchema()
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(express.json());
-app.use(express.static('public'));
 
 // Configure session middleware (placed before routes)
 app.use(session({
@@ -68,17 +67,40 @@ app.use(session({
   }
 }));
 
-// Mount auth routes
+// Mount auth routes (no protection needed)
 app.use('/api/auth', require('./routes/auth'));
 
+// ── Authentication middleware ────────────────────────────────
+function requireLogin(req, res, next) {
+  if (req.session && req.session.user) {
+    return next();
+  }
+  // Not authenticated
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  // For HTML/static files, redirect to login
+  res.redirect('/login.html');
+}
+
+// Serve public files (login page is accessible without auth)
+app.use('/login.html', express.static(path.join(__dirname, 'public'), { index: false }));
+app.use('/login.js', express.static(path.join(__dirname, 'public'), { index: false }));
+app.use('/style.css', express.static(path.join(__dirname, 'public'), { index: false }));
+app.use('/logo.png', express.static(path.join(__dirname, 'public'), { index: false }));
+
+// Protect all other static files with login requirement
+app.use(requireLogin);
+app.use(express.static('public'));
+
 // ── Routes ────────────────────────────────────────────────────
-app.use('/api/users',         require('./routes/users'));
-app.use('/api/registrations', require('./routes/registrations'));
-app.use('/api/conferences',   require('./routes/conferences'));
-app.use('/api/conferences',   require('./routes/conferenceAdvanced'));
+app.use('/api/users',         requireLogin, require('./routes/users'));
+app.use('/api/registrations', requireLogin, require('./routes/registrations'));
+app.use('/api/conferences',   requireLogin, require('./routes/conferences'));
+app.use('/api/conferences',   requireLogin, require('./routes/conferenceAdvanced'));
 
 // History / Reporting (PostgreSQL-backed)
-app.use('/api/history',       require('./routes/conferenceHistory'));
+app.use('/api/history',       requireLogin, require('./routes/conferenceHistory'));
 
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
