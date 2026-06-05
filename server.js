@@ -55,13 +55,15 @@ db.initSchema()
 app.use(express.json());
 
 // Configure session middleware (placed before routes)
+const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true';
+app.set('trust proxy', 1);
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: COOKIE_SECURE,
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 1 day
   }
