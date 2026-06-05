@@ -830,12 +830,14 @@ async function createAdminUser() {
 
 // ── Init ──────────────────────────────────────────────────────
 window.onload = () => {
-  // Auto-open menus
-  document.getElementById('userMenu').style.display      = 'block';
+  // Auto-open conference menu first
   document.getElementById('conferenceMenu').style.display = 'block';
-  document.getElementById('menu-user').classList.add('open');
   document.getElementById('menu-conf').classList.add('open');
 
-  showSection('userListSection');
+  // Keep user menu collapsed by default, but available below
+  document.getElementById('userMenu').style.display      = 'none';
+  document.getElementById('menu-user').classList.remove('open');
+
+  showSection('manageConferenceSection');
   startAutoRefresh();
 };

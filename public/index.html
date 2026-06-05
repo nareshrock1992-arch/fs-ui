@@ -31,16 +31,6 @@
     <button type="button" class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
   </div>
 
-  <!-- User Management -->
-  <div class="menu-item" id="menu-user" onclick="toggleMenu('userMenu', 'menu-user')">
-    User Management <span class="arrow">▾</span>
-  </div>
-    <div class="submenu" id="userMenu">
-    <div onclick="showSection('addUserSection')">➕ Add User</div>
-    <div onclick="showSection('userListSection')">👥 User List</div>
-    <div onclick="showSection('registeredSection')">📡 Registered Users</div>
-  </div>
-
   <!-- Conference Management -->
   <div class="menu-item" id="menu-conf" onclick="toggleMenu('conferenceMenu', 'menu-conf')">
     Conferences <span class="arrow">▾</span>
@@ -50,6 +40,16 @@
     <div onclick="showSection('manageConferenceSection')">🎛 Manage</div>
     <div onclick="showSection('monitorConferenceSection')">📊 Monitor</div>
     <div onclick="location.href='report.html'">📋 History Report</div>
+  </div>
+
+  <!-- User Management -->
+  <div class="menu-item" id="menu-user" onclick="toggleMenu('userMenu', 'menu-user')">
+    User Management <span class="arrow">▾</span>
+  </div>
+    <div class="submenu" id="userMenu">
+    <div onclick="showSection('addUserSection')">➕ Add User</div>
+    <div onclick="showSection('userListSection')">👥 User List</div>
+    <div onclick="showSection('registeredSection')">📡 Registered Users</div>
   </div>
 
   <!-- Sidebar Footer (Settings) -->
