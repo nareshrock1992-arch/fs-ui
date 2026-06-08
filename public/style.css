@@ -221,7 +221,7 @@ select:focus { border-color: var(--border-focus); outline: none; }
   color: var(--text-sidebar);
 }
 
-.submenu div:hover {
+.submenu div:not(.nested-submenu):hover {
   background: var(--bg-submenu-hover);
   color: #fff;
 }
@@ -270,6 +270,7 @@ select:focus { border-color: var(--border-focus); outline: none; }
   text-align: center;
   color: var(--text-secondary);
   max-width: 560px;
+  margin: 0 auto;
 }
 .placeholder-card .icon { font-size: 36px; display: block; margin-bottom: 12px; }
 .placeholder-card p { margin: 6px 0; font-size: 14px; }
