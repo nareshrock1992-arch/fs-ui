@@ -6,12 +6,15 @@ const { fsConn } = require('../freeswitch/esl');
 router.post('/volume', (req, res) => {
 
     const { conferenceName, memberId, level } = req.body;
+    if (!conferenceName || !memberId || level == null) {
+        return res.status(400).json({ success: false, error: 'Missing conferenceName, memberId, or level' });
+    }
 
     const cmd = `conference ${conferenceName} volume_in ${memberId} ${level}`;
 
     fsConn.bgapi(cmd, (reply) => {
 
-        const body = reply.getBody();
+        const body = reply && reply.getBody ? reply.getBody() : '';
 
         res.json({
             success: body.startsWith('+OK'),
@@ -25,12 +28,15 @@ router.post('/volume', (req, res) => {
 router.post('/lock', (req, res) => {
 
     const { conferenceName } = req.body;
+    if (!conferenceName) {
+        return res.status(400).json({ success: false, error: 'Missing conferenceName' });
+    }
 
     const cmd = `conference ${conferenceName} lock`;
 
     fsConn.bgapi(cmd, (reply) => {
 
-        const body = reply.getBody();
+        const body = reply && reply.getBody ? reply.getBody() : '';
 
         res.json({
             success: body.startsWith('+OK'),
@@ -44,14 +50,15 @@ router.post('/lock', (req, res) => {
 router.post('/unlock', (req, res) => {
 
     const { conferenceName } = req.body;
+    if (!conferenceName) {
+        return res.status(400).json({ success: false, error: 'Missing conferenceName' });
+    }
 
     const cmd = `conference ${conferenceName} unlock`;
 
-console.log("Executing:",cmd);
-  
-  fsConn.bgapi(cmd, (reply) => {
+    fsConn.bgapi(cmd, (reply) => {
 
-        const body = reply.getBody();
+        const body = reply && reply.getBody ? reply.getBody() : '';
 
         res.json({
             success: body.startsWith('+OK'),

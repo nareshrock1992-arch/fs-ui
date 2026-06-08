@@ -5,6 +5,10 @@ const fsConn = new esl.Connection("127.0.0.1", 8021, "ClueCon", () => {
   console.log("Connected to FreeSWITCH ESL");
 });
 
+fsConn.on('error', (err) => {
+  console.error('[esl] Connection error:', err.message);
+});
+
 // Subscribe to conference maintenance events
 fsConn.subscribe('conference::maintenance');
 
@@ -49,11 +53,11 @@ function createConference(name, extension) {
 function kickParticipant(conferenceName, memberId) {
   return new Promise((resolve, reject) => {
     fsConn.bgapi(`conference ${conferenceName} kick ${memberId}`, (res) => {
-      const body = res.getBody();
+      const body = res && res.getBody ? res.getBody() : '';
       if (body.startsWith('+OK')) {
         resolve(body);
       } else {
-        reject(new Error(body));
+        reject(new Error(body || 'Kick failed: no response from FreeSWITCH'));
       }
     });
   });
@@ -63,11 +67,11 @@ function kickParticipant(conferenceName, memberId) {
 function muteParticipant(conferenceName, memberId) {
   return new Promise((resolve, reject) => {
     fsConn.bgapi(`conference ${conferenceName} mute ${memberId}`, (res) => {
-      const body = res.getBody();
+      const body = res && res.getBody ? res.getBody() : '';
       if (body.startsWith('+OK')) {
         resolve(body);
       } else {
-        reject(new Error(body));
+        reject(new Error(body || 'Mute failed: no response from FreeSWITCH'));
       }
     });
   });
@@ -77,7 +81,7 @@ function muteParticipant(conferenceName, memberId) {
 function unmuteParticipant(conferenceName, memberId) {
   return new Promise((resolve, reject) => {
     fsConn.bgapi(`conference ${conferenceName} unmute ${memberId}`, (res) => {
-      const body = res.getBody();
+      const body = res && res.getBody ? res.getBody() : '';
       if (body && body.startsWith('+OK')) {
         resolve(body);
       } else {
@@ -91,11 +95,11 @@ function unmuteParticipant(conferenceName, memberId) {
 function muteAllParticipants(conferenceName) {
   return new Promise((resolve, reject) => {
     fsConn.bgapi(`conference ${conferenceName} mute all`, (res) => {
-      const body = res.getBody();
+      const body = res && res.getBody ? res.getBody() : '';
       if (body.startsWith('+OK')) {
         resolve(body);
       } else {
-        reject(new Error(body));
+        reject(new Error(body || 'Mute all failed: no response from FreeSWITCH'));
       }
     });
   });
@@ -105,11 +109,11 @@ function muteAllParticipants(conferenceName) {
 function unmuteAllParticipants(conferenceName) {
   return new Promise((resolve, reject) => {
     fsConn.bgapi(`conference ${conferenceName} unmute all`, (res) => {
-      const body = res.getBody();
+      const body = res && res.getBody ? res.getBody() : '';
       if (body.startsWith('+OK')) {
         resolve(body);
       } else {
-        reject(new Error(body));
+        reject(new Error(body || 'Unmute all failed: no response from FreeSWITCH'));
       }
     });
   });
@@ -119,11 +123,11 @@ function unmuteAllParticipants(conferenceName) {
 function terminateConference(conferenceName) {
   return new Promise((resolve, reject) => {
     fsConn.bgapi(`conference ${conferenceName} hup all`, (res) => {
-      const body = res.getBody();
+      const body = res && res.getBody ? res.getBody() : '';
       if (body.startsWith('+OK')) {
         resolve(body);
       } else {
-        reject(new Error(body));
+        reject(new Error(body || 'Terminate failed: no response from FreeSWITCH'));
       }
     });
   });
@@ -233,7 +237,7 @@ function parseConferenceList(rawOutput) {
 function getConferenceStats() {
   return new Promise((resolve, reject) => {
     fsConn.bgapi('conference list', (res) => {
-      const body = res.getBody();
+      const body = res && res.getBody ? res.getBody() : '';
       if (!body) return reject(new Error('No conferences found'));
 
       const lines = body.split('\n').filter(l => l.trim());
