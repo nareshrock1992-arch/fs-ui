@@ -331,48 +331,79 @@
     </div>
   </section>
 
+  <!-- ENS Organizations -->
   <section id="ensOrganizationsSection" class="section">
     <h2>ENS · Organizations</h2>
-    <div class="placeholder-card">
-      <span class="icon">🏬</span>
-      <p>Manage organizations enrolled in the Emergency Notification Service.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Add a new organization</p>
+      <label>Name</label><input id="ens-org-name" type="text" placeholder="Organization name">
+      <label>Type</label><input id="ens-org-type" type="text" placeholder="e.g. hospital, school" value="default">
+      <label>Description</label><input id="ens-org-desc" type="text" placeholder="Optional description">
+      <button type="button" onclick="createOrg('ens')" class="btn" style="margin-top:8px;">➕ Add Organization</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadOrgs('ens')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ens-orgs-table"><thead><tr><th>Name</th><th>Type</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ENS Departments -->
   <section id="ensDepartmentsSection" class="section">
     <h2>ENS · Departments</h2>
-    <div class="placeholder-card">
-      <span class="icon">🗂</span>
-      <p>Manage departments within each organization for targeted blast messaging.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Add a department to an organization</p>
+      <label>Organization</label><select id="ens-dept-org"></select>
+      <label>Name</label><input id="ens-dept-name" type="text" placeholder="Department name">
+      <label>Description</label><input id="ens-dept-desc" type="text" placeholder="Optional description">
+      <button type="button" onclick="createDept('ens')" class="btn" style="margin-top:8px;">➕ Add Department</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadDepts('ens')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ens-depts-table"><thead><tr><th>Name</th><th>Organization</th><th>Description</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ENS Users (Contacts) -->
   <section id="ensUsersSection" class="section">
     <h2>ENS · Users</h2>
-    <div class="placeholder-card">
-      <span class="icon">👥</span>
-      <p>Manage users and their notification contact details.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Add a user / contact</p>
+      <label>Organization</label><select id="ens-contact-org" onchange="populateDeptSelect('ens')"></select>
+      <label>Department</label><select id="ens-contact-dept"><option value="">— None —</option></select>
+      <label>Name</label><input id="ens-contact-name" type="text" placeholder="Full name">
+      <label>Role</label><input id="ens-contact-role" type="text" placeholder="e.g. manager, staff" value="member">
+      <label>Phone</label><input id="ens-contact-phone" type="text" placeholder="+1 555-123-4567">
+      <label>Email</label><input id="ens-contact-email" type="text" placeholder="user@example.com">
+      <button type="button" onclick="createContact('ens')" class="btn" style="margin-top:8px;">➕ Add User</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadContacts('ens')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ens-contacts-table"><thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Organization</th><th>Department</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ENS Groups (Responders) -->
   <section id="ensGroupsSection" class="section">
     <h2>ENS · Groups</h2>
-    <div class="placeholder-card">
-      <span class="icon">👨‍👩‍👧</span>
-      <p>Define recipient groups for emergency blast messages.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Create a recipient group</p>
+      <label>Organization</label><select id="ens-group-org"></select>
+      <label>Group Name</label><input id="ens-group-name" type="text" placeholder="Group name">
+      <label>Description</label><input id="ens-group-desc" type="text" placeholder="Optional description">
+      <button type="button" onclick="createGroup('ens')" class="btn" style="margin-top:8px;">➕ Create Group</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadGroups('ens')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ens-groups-table"><thead><tr><th>Name</th><th>Description</th><th>Organization</th><th>Members</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ENS Reports -->
   <section id="ensReportsSection" class="section">
     <h2>ENS · Reports</h2>
-    <div class="placeholder-card">
-      <span class="icon">📋</span>
-      <p>Review delivery reports and audit logs for emergency blast messages.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadReports('ens')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ens-reports-table"><thead><tr><th>Date</th><th>Caller ID</th><th>Blasted To</th><th>Status</th><th>Attendance</th><th>Duration</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
@@ -386,52 +417,84 @@
     </div>
   </section>
 
+  <!-- ERS Organizations -->
   <section id="ersOrganizationsSection" class="section">
     <h2>ERS · Organizations</h2>
-    <div class="placeholder-card">
-      <span class="icon">🏬</span>
-      <p>Manage organizations enrolled in the Emergency Response (blast dial) Service.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Add a new organization</p>
+      <label>Name</label><input id="ers-org-name" type="text" placeholder="Organization name">
+      <label>Type</label><input id="ers-org-type" type="text" placeholder="e.g. hospital, school" value="default">
+      <label>Description</label><input id="ers-org-desc" type="text" placeholder="Optional description">
+      <button type="button" onclick="createOrg('ers')" class="btn" style="margin-top:8px;">➕ Add Organization</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadOrgs('ers')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ers-orgs-table"><thead><tr><th>Name</th><th>Type</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ERS Departments -->
   <section id="ersDepartmentsSection" class="section">
     <h2>ERS · Departments</h2>
-    <div class="placeholder-card">
-      <span class="icon">🗂</span>
-      <p>Manage departments within each organization for targeted blast dials.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Add a department to an organization</p>
+      <label>Organization</label><select id="ers-dept-org"></select>
+      <label>Name</label><input id="ers-dept-name" type="text" placeholder="Department name">
+      <label>Description</label><input id="ers-dept-desc" type="text" placeholder="Optional description">
+      <button type="button" onclick="createDept('ers')" class="btn" style="margin-top:8px;">➕ Add Department</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadDepts('ers')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ers-depts-table"><thead><tr><th>Name</th><th>Organization</th><th>Description</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ERS Users (Contacts) -->
   <section id="ersUsersSection" class="section">
     <h2>ERS · Users</h2>
-    <div class="placeholder-card">
-      <span class="icon">👥</span>
-      <p>Manage users and the phone numbers reached during a blast dial.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Add a user / contact</p>
+      <label>Organization</label><select id="ers-contact-org" onchange="populateDeptSelect('ers')"></select>
+      <label>Department</label><select id="ers-contact-dept"><option value="">— None —</option></select>
+      <label>Name</label><input id="ers-contact-name" type="text" placeholder="Full name">
+      <label>Role</label><input id="ers-contact-role" type="text" placeholder="e.g. manager, staff" value="member">
+      <label>Phone</label><input id="ers-contact-phone" type="text" placeholder="+1 555-123-4567">
+      <label>Email</label><input id="ers-contact-email" type="text" placeholder="user@example.com">
+      <button type="button" onclick="createContact('ers')" class="btn" style="margin-top:8px;">➕ Add User</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadContacts('ers')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ers-contacts-table"><thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Organization</th><th>Department</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ERS Groups (Responders) -->
   <section id="ersGroupsSection" class="section">
     <h2>ERS · Groups</h2>
-    <div class="placeholder-card">
-      <span class="icon">👨‍👩‍👧</span>
-      <p>Define call groups dialed during an emergency response.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="ens-ers-form" style="background:var(--bg-secondary);padding:12px;border-radius:6px;margin-bottom:16px;">
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">Create a call group</p>
+      <label>Organization</label><select id="ers-group-org"></select>
+      <label>Group Name</label><input id="ers-group-name" type="text" placeholder="Group name">
+      <label>Description</label><input id="ers-group-desc" type="text" placeholder="Optional description">
+      <button type="button" onclick="createGroup('ers')" class="btn" style="margin-top:8px;">➕ Create Group</button>
+    </div>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadGroups('ers')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ers-groups-table"><thead><tr><th>Name</th><th>Description</th><th>Organization</th><th>Members</th><th>Actions</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
+  <!-- ERS Reports -->
   <section id="ersReportsSection" class="section">
     <h2>ERS · Reports</h2>
-    <div class="placeholder-card">
-      <span class="icon">📋</span>
-      <p>Review call outcomes, answer rates and audit logs for blast dials.</p>
-      <p class="muted">This area is ready to build on.</p>
+    <div class="section-toolbar"><button type="button" class="btn btn-refresh" onclick="loadReports('ers')">↻ Refresh</button></div>
+    <div class="table-container">
+      <table id="ers-reports-table"><thead><tr><th>Date</th><th>Caller ID</th><th>Blasted To</th><th>Status</th><th>Attendance</th><th>Duration</th></tr></thead><tbody></tbody></table>
     </div>
   </section>
 
 </div>
 <script src="app.js"></script>
+<script src="ens-ers.js"></script>
 </body>
 </html>
