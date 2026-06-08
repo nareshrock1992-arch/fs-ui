@@ -12,7 +12,11 @@ const PORT    = process.env.PORT || 3000;
 
 // Session support
 const session = require('express-session');
-const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-secret-in-production';
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  console.error('[server] FATAL: SESSION_SECRET environment variable is required');
+  process.exit(1);
+}
 
 // ── Bootstrap DB schema before accepting requests ─────────────
 const db = require('./db');

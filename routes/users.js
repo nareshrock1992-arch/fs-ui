@@ -4,13 +4,18 @@ const router = express.Router();
 const xml = require('../freeswitch/xml');
 const { fsConn } = require('../freeswitch/esl');  // destructure the connection
 
-// Add User
-router.get('/add', (req, res) => {
-    const { username, password } = req.query;
-    if (!username || !password) return res.send("Missing values");
+// Add User (POST — credentials must not appear in URL/logs)
+router.post('/add', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Missing username or password' });
+    }
 
-    // Write the XML file for the new user
-    xml.addUser(username, password);
+    try {
+        xml.addUser(username, password);
+    } catch (err) {
+        return res.status(400).json({ error: err.message });
+    }
 
     // Reload FreeSWITCH configs via ESL
     fsConn.bgapi("reloadxml", (reply) => {
@@ -18,22 +23,30 @@ router.get('/add', (req, res) => {
         console.log("Reload XML response:", body);
 
         if (body.includes("OK")) {
-            res.send(`User ${username} created`);
+            res.json({ success: true, message: `User ${username} created` });
         } else {
-            res.status(500).send(`User ${username} added to XML, but reloadxml failed: ${body}`);
+            res.status(500).json({ error: `User added to XML, but reloadxml failed: ${body}` });
         }
     });
 });
-// Delete User
-router.get('/delete', (req, res) => {
-    const { username } = req.query;
-    if (!username) return res.send("Missing username");
 
-    const ok = xml.deleteUser(username);
-    if (!ok) return res.send("User not found");
+// Delete User (POST — state-changing operation)
+router.post('/delete', (req, res) => {
+    const { username } = req.body;
+    if (!username) {
+        return res.status(400).json({ error: 'Missing username' });
+    }
 
-    fsConn.api("reloadxml", () => {
-        res.send(`User ${username} deleted`);
+    let ok;
+    try {
+        ok = xml.deleteUser(username);
+    } catch (err) {
+        return res.status(400).json({ error: err.message });
+    }
+    if (!ok) return res.status(404).json({ error: 'User not found' });
+
+    fsConn.bgapi("reloadxml", (reply) => {
+        res.json({ success: true, message: `User ${username} deleted` });
     });
 });
 // List Users
