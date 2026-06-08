@@ -120,6 +120,9 @@ app.use('/api/conferences',   requireLogin, require('./routes/conferenceAdvanced
 // History / Reporting (PostgreSQL-backed)
 app.use('/api/history',       requireLogin, require('./routes/conferenceHistory'));
 
+// Organization Management (PostgreSQL-backed)
+app.use('/api/organizations', requireLogin, require('./routes/organizations'));
+
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);

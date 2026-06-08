@@ -109,6 +109,7 @@ function showSection(id) {
   if (id === 'monitorConferenceSection')  monitorConferences();
   if (id === 'reportSection')             loadHistory();
   if (id === 'adminSection')              loadAdminUsers();
+  if (id === 'orgListSection')            loadOrganizations();
 }
 
 // ── Users ─────────────────────────────────────────────────────
@@ -1081,6 +1082,174 @@ async function createAdminUser() {
       loadAdminUsers();
     } else {
       toast('error', 'Failed to create admin', data.error || 'Unknown error');
+    }
+  } catch (err) {
+    toast('error', 'Network error', err.message);
+  }
+}
+
+// ── Organizations ─────────────────────────────────────────────
+async function addOrganization() {
+  const name        = document.getElementById('orgName').value.trim();
+  const type        = document.getElementById('orgType').value.trim();
+  const description = document.getElementById('orgDescription').value.trim();
+  const modules     = document.getElementById('orgModules').value || null;
+  const active      = document.getElementById('orgActive').checked;
+
+  if (!name || !type) {
+    toast('warn', 'Missing fields', 'Organization name and type are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/organizations/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, type, description, modules, active })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Organization created', `${name} added successfully.`);
+      document.getElementById('orgName').value = '';
+      document.getElementById('orgType').value = '';
+      document.getElementById('orgDescription').value = '';
+      document.getElementById('orgModules').value = '';
+      document.getElementById('orgActive').checked = true;
+    } else {
+      toast('error', 'Failed to create organization', data.error || 'Unknown error');
+    }
+  } catch (err) {
+    toast('error', 'Network error', err.message);
+  }
+}
+
+async function loadOrganizations() {
+  try {
+    const res  = await fetch('/api/organizations/list', { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#org-table tbody');
+    tbody.innerHTML = '';
+    const orgs = data.data || [];
+    if (!orgs.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 5;
+      td.innerHTML = '<div class="empty-state"><span class="icon">🏢</span>No organizations yet</div>';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+    orgs.forEach(org => {
+      const tr = document.createElement('tr');
+
+      const tdName = document.createElement('td');
+      tdName.textContent = org.name;
+
+      const tdType = document.createElement('td');
+      tdType.textContent = org.type;
+
+      const tdModule = document.createElement('td');
+      tdModule.textContent = org.modules ? org.modules.toUpperCase() : '—';
+
+      const tdActive = document.createElement('td');
+      tdActive.innerHTML = org.active
+        ? '<span style="color:#16a34a;font-weight:600;">Active</span>'
+        : '<span style="color:#dc2626;font-weight:600;">Inactive</span>';
+
+      const tdActions = document.createElement('td');
+      tdActions.style.whiteSpace = 'nowrap';
+
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.className = 'btn';
+      editBtn.style.cssText = 'margin-right:6px;padding:4px 10px;font-size:12px;';
+      editBtn.addEventListener('click', () => openEditOrg(org));
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.className = 'btn';
+      delBtn.style.cssText = 'padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;';
+      delBtn.addEventListener('click', () => deleteOrganization(org.id, org.name));
+
+      tdActions.appendChild(editBtn);
+      tdActions.appendChild(delBtn);
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdType);
+      tr.appendChild(tdModule);
+      tr.appendChild(tdActive);
+      tr.appendChild(tdActions);
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    toast('error', 'Failed to load organizations', err.message);
+  }
+}
+
+function openEditOrg(org) {
+  document.getElementById('editOrgId').value          = org.id;
+  document.getElementById('editOrgName').value        = org.name;
+  document.getElementById('editOrgType').value        = org.type;
+  document.getElementById('editOrgDescription').value = org.description || '';
+  document.getElementById('editOrgModules').value     = org.modules || '';
+  document.getElementById('editOrgActive').checked    = org.active;
+  document.getElementById('edit-org-overlay').style.display = 'flex';
+}
+
+function closeEditOrg() {
+  document.getElementById('edit-org-overlay').style.display = 'none';
+}
+
+async function saveEditOrg() {
+  const id          = document.getElementById('editOrgId').value;
+  const name        = document.getElementById('editOrgName').value.trim();
+  const type        = document.getElementById('editOrgType').value.trim();
+  const description = document.getElementById('editOrgDescription').value.trim();
+  const modules     = document.getElementById('editOrgModules').value || null;
+  const active      = document.getElementById('editOrgActive').checked;
+
+  if (!name || !type) {
+    toast('warn', 'Missing fields', 'Organization name and type are required.');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/organizations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, type, description, modules, active })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Organization updated', `${name} saved.`);
+      closeEditOrg();
+      loadOrganizations();
+    } else {
+      toast('error', 'Failed to update organization', data.error || 'Unknown error');
+    }
+  } catch (err) {
+    toast('error', 'Network error', err.message);
+  }
+}
+
+async function deleteOrganization(id, name) {
+  const ok = await showConfirm(
+    'Delete Organization',
+    `Are you sure you want to delete "${name}"? This will also remove all related contacts, locations, rooms, responders, ENS, and ERS records.`,
+    'Delete'
+  );
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/organizations/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Organization deleted', `${name} removed.`);
+      loadOrganizations();
+    } else {
+      toast('error', 'Failed to delete organization', data.error || 'Unknown error');
     }
   } catch (err) {
     toast('error', 'Network error', err.message);

@@ -42,6 +42,7 @@ pool.on('error', (err) => {
 
 // ── Schema bootstrap ──────────────────────────────────────────
 async function initSchema() {
+  // ── Conference History tables (original) ─────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS conferences (
       id             SERIAL PRIMARY KEY,
@@ -92,6 +93,241 @@ async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_evt_conf
       ON events (conference_id);
   `);
+
+  // ── ENS / ERS Organization schema ───────────────────────────
+  // Create ENUM types (idempotent — skip if they already exist)
+  const enums = [
+    { name: 'enum_Organization_modules', values: ['ens', 'ers'] },
+    { name: 'enum_Contacts_modules',     values: ['ens', 'ers'] },
+    { name: 'enum_Location_modules',     values: ['ens', 'ers'] },
+    { name: 'enum_Responder_modules',    values: ['ens', 'ers'] },
+    { name: 'enum_Room_modules',         values: ['ens', 'ers'] },
+    { name: 'enum_users_role',           values: ['Admin', 'User'] },
+    { name: 'enum_blast_logs_module',    values: ['ens', 'ers'] },
+    { name: 'enum_blast_logs_conference_type', values: ['primary', 'secondary'] },
+    { name: 'enum_blast_logs_group_type',      values: ['primary', 'secondary'] },
+  ];
+
+  for (const e of enums) {
+    const vals = e.values.map(v => `'${v}'`).join(', ');
+    await pool.query(`
+      DO $$ BEGIN
+        CREATE TYPE "${e.name}" AS ENUM (${vals});
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
+    `);
+  }
+
+  // Organization
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "Organization" (
+      id          VARCHAR(255) NOT NULL PRIMARY KEY,
+      name        VARCHAR(255) NOT NULL,
+      type        VARCHAR(255) NOT NULL,
+      description TEXT,
+      active      BOOLEAN      NOT NULL DEFAULT TRUE,
+      modules     "enum_Organization_modules"
+    );
+  `);
+
+  // Contacts
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "Contacts" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      role              VARCHAR(255) NOT NULL,
+      phone             VARCHAR(255) NOT NULL,
+      email             VARCHAR(255),
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE,
+      modules           "enum_Contacts_modules" NOT NULL
+    );
+  `);
+
+  // Location
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "Location" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      modules           "enum_Location_modules",
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+
+  // Room
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "Room" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      modules           "enum_Room_modules",
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE,
+      "locations_Id"    VARCHAR(255) NOT NULL REFERENCES "Location"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+
+  // Responder
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "Responder" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      description       VARCHAR(255) NOT NULL,
+      modules           "enum_Responder_modules",
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+
+  // ResponderContacts (many-to-many)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "ResponderContacts" (
+      "createdAt"    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      "updatedAt"    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      "ResponderId"  VARCHAR(255) NOT NULL REFERENCES "Responder"(id)
+                     ON UPDATE CASCADE ON DELETE CASCADE,
+      "ContactId"    VARCHAR(255) NOT NULL REFERENCES "Contacts"(id)
+                     ON UPDATE CASCADE ON DELETE CASCADE,
+      PRIMARY KEY ("ResponderId", "ContactId")
+    );
+  `);
+
+  // DailySync
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "DailySync" (
+      id              VARCHAR(255) NOT NULL PRIMARY KEY,
+      host            VARCHAR(255) NOT NULL,
+      database_name   VARCHAR(255) NOT NULL,
+      "user"          VARCHAR(255) NOT NULL,
+      password        VARCHAR(255) NOT NULL,
+      active          BOOLEAN      NOT NULL DEFAULT TRUE,
+      "time"          VARCHAR(255) DEFAULT '00:00',
+      query           TEXT,
+      "responderId"   VARCHAR(255) NOT NULL REFERENCES "Responder"(id)
+                      ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+
+  // ENS (Emergency Notification System)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "ENS" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      pin               VARCHAR(255) NOT NULL,
+      responders        JSONB        NOT NULL,
+      active            BOOLEAN      NOT NULL DEFAULT TRUE,
+      phone             VARCHAR(255) NOT NULL,
+      retry_number      VARCHAR(255),
+      retry             INTEGER      NOT NULL DEFAULT 0,
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+
+  // ERS (Emergency Response System)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "ERS" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      responders        JSONB        NOT NULL,
+      active            BOOLEAN      DEFAULT FALSE,
+      phone             VARCHAR(255) NOT NULL,
+      retry             INTEGER      NOT NULL DEFAULT 0,
+      retry_number      JSONB        DEFAULT '{"primary": null, "secondary": null}',
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE
+    );
+  `);
+
+  // License
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "License" (
+      id                  VARCHAR(255) NOT NULL PRIMARY KEY,
+      token               TEXT,
+      activated_at        TIMESTAMPTZ,
+      expires_at          TIMESTAMPTZ,
+      used_keys           TEXT         NOT NULL DEFAULT '[]',
+      key_attempt_count   INTEGER      NOT NULL DEFAULT 0,
+      key_lockout_until   TIMESTAMPTZ,
+      "createdAt"         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      "updatedAt"         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  // blast_logs
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS blast_logs (
+      id                    SERIAL PRIMARY KEY,
+      callid                VARCHAR(255),
+      caller_id             VARCHAR(255),
+      record_start          TIMESTAMPTZ,
+      record_end            TIMESTAMPTZ,
+      record_duration       INTEGER,
+      recording_file        VARCHAR(255),
+      blasted_to            VARCHAR(255),
+      attendance_status     VARCHAR(255),
+      recording_name        VARCHAR(255),
+      recording_size        BIGINT,
+      recording_format      VARCHAR(20),
+      recording_duration_sec INTEGER,
+      recording_url         TEXT,
+      ens_number            TEXT,
+      created_at            TIMESTAMPTZ,
+      module                "enum_blast_logs_module",
+      conference_type       "enum_blast_logs_conference_type",
+      answered_at           TIMESTAMPTZ,
+      group_type            "enum_blast_logs_group_type",
+      blast_status          VARCHAR(255) DEFAULT 'COMPLETED',
+      attempt_number        INTEGER      DEFAULT 0,
+      last_hangup_cause     VARCHAR(255)
+    );
+  `);
+
+  // app_users (RBAC users table from ENS/ERS schema)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_users (
+      id          UUID         NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+      name        VARCHAR(255) NOT NULL,
+      email       VARCHAR(255) NOT NULL UNIQUE,
+      password    VARCHAR(255) NOT NULL,
+      role        "enum_users_role" NOT NULL DEFAULT 'User',
+      active      BOOLEAN      NOT NULL DEFAULT TRUE,
+      "timeZone"  VARCHAR(255) DEFAULT 'UTC',
+      "createdAt" TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      "updatedAt" TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  // Trigger: map_responder_to_org
+  await pool.query(`
+    CREATE OR REPLACE FUNCTION map_responder_to_org() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    DECLARE
+      correct_org UUID;
+    BEGIN
+      SELECT "organization_Id"
+      INTO correct_org
+      FROM "Responder"
+      WHERE id = NEW."organization_Id";
+
+      IF correct_org IS NOT NULL THEN
+        NEW."organization_Id" := correct_org;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$;
+  `);
+
+  // Attach trigger to Contacts (idempotent — drop first if exists)
+  await pool.query(`
+    DROP TRIGGER IF EXISTS trg_map_responder_to_org ON "Contacts";
+    CREATE TRIGGER trg_map_responder_to_org
+      BEFORE INSERT ON "Contacts"
+      FOR EACH ROW EXECUTE FUNCTION map_responder_to_org();
+  `);
+
   console.log('[db] Schema ready.');
 }
 
@@ -372,11 +608,50 @@ async function getActiveConferences() {
   }));
 }
 
+// ── Organization CRUD ─────────────────────────────────────────
+
+async function createOrganization({ id, name, type, description, active, modules }) {
+  const res = await query(
+    `INSERT INTO "Organization" (id, name, type, description, active, modules)
+      VALUES ($1, $2, $3, $4, $5, $6::"enum_Organization_modules")
+      RETURNING *`,
+    [id, name, type, description || null, active !== false, modules || null]
+  );
+  return res.rows[0];
+}
+
+async function getAllOrganizations() {
+  const res = await query(`SELECT * FROM "Organization" ORDER BY name ASC`);
+  return res.rows;
+}
+
+async function getOrganizationById(id) {
+  const res = await query(`SELECT * FROM "Organization" WHERE id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateOrganization(id, { name, type, description, active, modules }) {
+  const res = await query(
+    `UPDATE "Organization"
+        SET name = $2, type = $3, description = $4, active = $5,
+            modules = $6::"enum_Organization_modules"
+      WHERE id = $1
+      RETURNING *`,
+    [id, name, type, description || null, active !== false, modules || null]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteOrganization(id) {
+  const res = await query(`DELETE FROM "Organization" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
 // ── Exports ───────────────────────────────────────────────────
 module.exports = {
   pool,
   initSchema,
-  // write
+  // conference write
   ensureConference,
   closeConference,
   recordJoin,
@@ -384,13 +659,19 @@ module.exports = {
   recordMute,
   addEvent,
   addConferenceEvent,
-  // read
+  // conference read
   getAllConferences,
   getConferenceById,
   getParticipantsByConference,
   getEventsByConference,
   getStats,
-  getActiveConferences
+  getActiveConferences,
+  // organization CRUD
+  createOrganization,
+  getAllOrganizations,
+  getOrganizationById,
+  updateOrganization,
+  deleteOrganization
 };
 
 // ── Run schema bootstrap when called directly ─────────────────

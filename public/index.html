@@ -101,6 +101,15 @@
     <div onclick="showSection('registeredSection')">📡 Registered Users</div>
   </div>
 
+  <!-- Organization Management -->
+  <div class="menu-item" id="menu-org" onclick="toggleMenu('orgMenu', 'menu-org')">
+    Organization <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="orgMenu">
+    <div onclick="showSection('addOrgSection')">➕ Add Organization</div>
+    <div onclick="showSection('orgListSection')">🏢 Organization List</div>
+  </div>
+
   <!-- Sidebar Footer (Settings) -->
   <div class="sidebar-footer">
     <div class="menu-item" id="menu-settings" onclick="toggleMenu('settingsMenu', 'menu-settings')">
@@ -254,6 +263,76 @@
     </div>
     <div class="pagination" id="pagination"></div>
   </section>
+
+  <!-- Add Organization -->
+  <section id="addOrgSection" class="section">
+    <h2>Add Organization</h2>
+    <label for="orgName">Organization Name</label>
+    <input id="orgName" type="text" placeholder="e.g. ACME Corp">
+    <label for="orgType">Type</label>
+    <input id="orgType" type="text" placeholder="e.g. Hospital, Government, Corporate">
+    <label for="orgDescription">Description</label>
+    <textarea id="orgDescription" rows="3" placeholder="Brief description (optional)" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;resize:vertical;"></textarea>
+    <label for="orgModules">Module</label>
+    <select id="orgModules" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+      <option value="">— Select module —</option>
+      <option value="ens">ENS</option>
+      <option value="ers">ERS</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <input id="orgActive" type="checkbox" checked> Active
+    </label>
+    <button type="button" onclick="addOrganization()" style="margin-top:12px;">Add Organization</button>
+  </section>
+
+  <!-- Organization List -->
+  <section id="orgListSection" class="section">
+    <h2>Organization List</h2>
+    <div class="section-toolbar">
+      <button type="button" class="btn btn-refresh" onclick="loadOrganizations()" style="margin-top:0;">↻ Refresh</button>
+    </div>
+    <div class="table-container">
+      <table id="org-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Module</th>
+            <th>Active</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Edit Organization Modal -->
+  <div id="edit-org-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-secondary,#fff);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <h3 style="margin-top:0;">Edit Organization</h3>
+      <input type="hidden" id="editOrgId">
+      <label for="editOrgName">Name</label>
+      <input id="editOrgName" type="text">
+      <label for="editOrgType">Type</label>
+      <input id="editOrgType" type="text">
+      <label for="editOrgDescription">Description</label>
+      <textarea id="editOrgDescription" rows="3" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;resize:vertical;"></textarea>
+      <label for="editOrgModules">Module</label>
+      <select id="editOrgModules" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+        <option value="">— Select module —</option>
+        <option value="ens">ENS</option>
+        <option value="ers">ERS</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input id="editOrgActive" type="checkbox"> Active
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" class="btn-cancel" onclick="closeEditOrg()">Cancel</button>
+        <button type="button" onclick="saveEditOrg()">Save</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Admin Users -->
   <section id="adminSection" class="section">
