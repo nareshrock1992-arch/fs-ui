@@ -1,8 +1,15 @@
 const esl = require('modesl');
 
-// Create ESL connection
+// Create ESL connection (non-fatal — server keeps running if FreeSWITCH is unavailable)
+let eslConnected = false;
 const fsConn = new esl.Connection("127.0.0.1", 8021, "ClueCon", () => {
+  eslConnected = true;
   console.log("Connected to FreeSWITCH ESL");
+});
+
+fsConn.on('error', (err) => {
+  eslConnected = false;
+  console.warn('[esl] FreeSWITCH connection error (non-fatal):', err.message);
 });
 
 // Subscribe to conference maintenance events
