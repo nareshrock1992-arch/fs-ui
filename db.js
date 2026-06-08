@@ -130,6 +130,18 @@ async function initSchema() {
     );
   `);
 
+  // Department
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "Department" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      description       TEXT,
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE,
+      modules           "enum_Organization_modules"
+    );
+  `);
+
   // Contacts
   await pool.query(`
     CREATE TABLE IF NOT EXISTS "Contacts" (
@@ -140,6 +152,8 @@ async function initSchema() {
       email             VARCHAR(255),
       "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
                         ON UPDATE CASCADE ON DELETE CASCADE,
+      "department_Id"   VARCHAR(255) REFERENCES "Department"(id)
+                        ON UPDATE CASCADE ON DELETE SET NULL,
       modules           "enum_Contacts_modules" NOT NULL
     );
   `);
@@ -151,7 +165,34 @@ async function initSchema() {
       name              VARCHAR(255) NOT NULL,
       modules           "enum_Location_modules",
       "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
-                        ON UPDATE CASCADE ON DELETE CASCADE
+                        ON UPDATE CASCADE ON DELETE CASCADE,
+      "department_Id"   VARCHAR(255) REFERENCES "Department"(id)
+                        ON UPDATE CASCADE ON DELETE SET NULL
+    );
+  `);
+
+  // Group (for grouping contacts for blast notifications)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "Group" (
+      id                VARCHAR(255) NOT NULL PRIMARY KEY,
+      name              VARCHAR(255) NOT NULL,
+      type              "enum_blast_logs_group_type",
+      description       TEXT,
+      "organization_Id" VARCHAR(255) NOT NULL REFERENCES "Organization"(id)
+                        ON UPDATE CASCADE ON DELETE CASCADE,
+      modules           "enum_Organization_modules"
+    );
+  `);
+
+  // GroupContacts (many-to-many: Group ↔ Contacts)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "GroupContacts" (
+      "GroupId"    VARCHAR(255) NOT NULL REFERENCES "Group"(id)
+                   ON UPDATE CASCADE ON DELETE CASCADE,
+      "ContactId"  VARCHAR(255) NOT NULL REFERENCES "Contacts"(id)
+                   ON UPDATE CASCADE ON DELETE CASCADE,
+      "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY ("GroupId", "ContactId")
     );
   `);
 
@@ -326,6 +367,22 @@ async function initSchema() {
     CREATE TRIGGER trg_map_responder_to_org
       BEFORE INSERT ON "Contacts"
       FOR EACH ROW EXECUTE FUNCTION map_responder_to_org();
+  `);
+
+  // ── Migrations: add department_Id columns to existing tables ──
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE "Contacts" ADD COLUMN "department_Id" VARCHAR(255)
+        REFERENCES "Department"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+    EXCEPTION WHEN duplicate_column THEN NULL;
+    END $$;
+  `);
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE "Location" ADD COLUMN "department_Id" VARCHAR(255)
+        REFERENCES "Department"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+    EXCEPTION WHEN duplicate_column THEN NULL;
+    END $$;
   `);
 
   console.log('[db] Schema ready.');
@@ -620,8 +677,15 @@ async function createOrganization({ id, name, type, description, active, modules
   return res.rows[0];
 }
 
-async function getAllOrganizations() {
-  const res = await query(`SELECT * FROM "Organization" ORDER BY name ASC`);
+async function getAllOrganizations(filters = {}) {
+  let sql = `SELECT * FROM "Organization"`;
+  const params = [];
+  if (filters.modules) {
+    params.push(filters.modules);
+    sql += ` WHERE modules = $1::"enum_Organization_modules"`;
+  }
+  sql += ' ORDER BY name ASC';
+  const res = await query(sql, params);
   return res.rows;
 }
 
@@ -647,6 +711,270 @@ async function deleteOrganization(id) {
   return res.rows[0] || null;
 }
 
+// ── Department CRUD ───────────────────────────────────────────
+
+async function createDepartment({ id, name, description, organization_Id, modules }) {
+  const res = await query(
+    `INSERT INTO "Department" (id, name, description, "organization_Id", modules)
+      VALUES ($1, $2, $3, $4, $5::"enum_Organization_modules")
+      RETURNING *`,
+    [id, name, description || null, organization_Id, modules || null]
+  );
+  return res.rows[0];
+}
+
+async function getAllDepartments(filters = {}) {
+  let sql = `SELECT d.*, o.name AS organization_name FROM "Department" d
+             LEFT JOIN "Organization" o ON d."organization_Id" = o.id`;
+  const params = [];
+  const clauses = [];
+  if (filters.modules) { params.push(filters.modules); clauses.push(`d.modules = $${params.length}::"enum_Organization_modules"`); }
+  if (filters.organization_Id) { params.push(filters.organization_Id); clauses.push(`d."organization_Id" = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY d.name ASC';
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function getDepartmentById(id) {
+  const res = await query(`SELECT * FROM "Department" WHERE id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateDepartment(id, { name, description, organization_Id, modules }) {
+  const res = await query(
+    `UPDATE "Department"
+        SET name = $2, description = $3, "organization_Id" = $4,
+            modules = $5::"enum_Organization_modules"
+      WHERE id = $1 RETURNING *`,
+    [id, name, description || null, organization_Id, modules || null]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteDepartment(id) {
+  const res = await query(`DELETE FROM "Department" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
+// ── Contacts CRUD ─────────────────────────────────────────────
+
+async function createContact({ id, name, role, phone, email, organization_Id, department_Id, modules }) {
+  const res = await query(
+    `INSERT INTO "Contacts" (id, name, role, phone, email, "organization_Id", "department_Id", modules)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::"enum_Contacts_modules")
+      RETURNING *`,
+    [id, name, role, phone, email || null, organization_Id, department_Id || null, modules]
+  );
+  return res.rows[0];
+}
+
+async function getAllContacts(filters = {}) {
+  let sql = `SELECT c.*, o.name AS organization_name, d.name AS department_name
+             FROM "Contacts" c
+             LEFT JOIN "Organization" o ON c."organization_Id" = o.id
+             LEFT JOIN "Department" d ON c."department_Id" = d.id`;
+  const params = [];
+  const clauses = [];
+  if (filters.modules) { params.push(filters.modules); clauses.push(`c.modules = $${params.length}::"enum_Contacts_modules"`); }
+  if (filters.organization_Id) { params.push(filters.organization_Id); clauses.push(`c."organization_Id" = $${params.length}`); }
+  if (filters.department_Id) { params.push(filters.department_Id); clauses.push(`c."department_Id" = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY c.name ASC';
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function getContactById(id) {
+  const res = await query(`SELECT * FROM "Contacts" WHERE id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateContact(id, { name, role, phone, email, organization_Id, department_Id, modules }) {
+  const res = await query(
+    `UPDATE "Contacts"
+        SET name = $2, role = $3, phone = $4, email = $5,
+            "organization_Id" = $6, "department_Id" = $7,
+            modules = $8::"enum_Contacts_modules"
+      WHERE id = $1 RETURNING *`,
+    [id, name, role, phone, email || null, organization_Id, department_Id || null, modules]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteContact(id) {
+  const res = await query(`DELETE FROM "Contacts" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
+// ── Location CRUD ─────────────────────────────────────────────
+
+async function createLocation({ id, name, modules, organization_Id, department_Id }) {
+  const res = await query(
+    `INSERT INTO "Location" (id, name, modules, "organization_Id", "department_Id")
+      VALUES ($1, $2, $3::"enum_Location_modules", $4, $5)
+      RETURNING *`,
+    [id, name, modules || null, organization_Id, department_Id || null]
+  );
+  return res.rows[0];
+}
+
+async function getAllLocations(filters = {}) {
+  let sql = `SELECT l.*, o.name AS organization_name, d.name AS department_name
+             FROM "Location" l
+             LEFT JOIN "Organization" o ON l."organization_Id" = o.id
+             LEFT JOIN "Department" d ON l."department_Id" = d.id`;
+  const params = [];
+  const clauses = [];
+  if (filters.modules) { params.push(filters.modules); clauses.push(`l.modules = $${params.length}::"enum_Location_modules"`); }
+  if (filters.organization_Id) { params.push(filters.organization_Id); clauses.push(`l."organization_Id" = $${params.length}`); }
+  if (filters.department_Id) { params.push(filters.department_Id); clauses.push(`l."department_Id" = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY l.name ASC';
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function getLocationById(id) {
+  const res = await query(`SELECT * FROM "Location" WHERE id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateLocation(id, { name, modules, organization_Id, department_Id }) {
+  const res = await query(
+    `UPDATE "Location"
+        SET name = $2, modules = $3::"enum_Location_modules",
+            "organization_Id" = $4, "department_Id" = $5
+      WHERE id = $1 RETURNING *`,
+    [id, name, modules || null, organization_Id, department_Id || null]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteLocation(id) {
+  const res = await query(`DELETE FROM "Location" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
+// ── Group CRUD ────────────────────────────────────────────────
+
+async function createGroup({ id, name, type, description, organization_Id, modules }) {
+  const res = await query(
+    `INSERT INTO "Group" (id, name, type, description, "organization_Id", modules)
+      VALUES ($1, $2, $3::"enum_blast_logs_group_type", $4, $5, $6::"enum_Organization_modules")
+      RETURNING *`,
+    [id, name, type || null, description || null, organization_Id, modules || null]
+  );
+  return res.rows[0];
+}
+
+async function getAllGroups(filters = {}) {
+  let sql = `SELECT g.*, o.name AS organization_name FROM "Group" g
+             LEFT JOIN "Organization" o ON g."organization_Id" = o.id`;
+  const params = [];
+  const clauses = [];
+  if (filters.modules) { params.push(filters.modules); clauses.push(`g.modules = $${params.length}::"enum_Organization_modules"`); }
+  if (filters.organization_Id) { params.push(filters.organization_Id); clauses.push(`g."organization_Id" = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY g.name ASC';
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function getGroupById(id) {
+  const res = await query(`SELECT * FROM "Group" WHERE id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateGroup(id, { name, type, description, organization_Id, modules }) {
+  const res = await query(
+    `UPDATE "Group"
+        SET name = $2, type = $3::"enum_blast_logs_group_type", description = $4,
+            "organization_Id" = $5, modules = $6::"enum_Organization_modules"
+      WHERE id = $1 RETURNING *`,
+    [id, name, type || null, description || null, organization_Id, modules || null]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteGroup(id) {
+  const res = await query(`DELETE FROM "Group" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
+async function addContactToGroup(groupId, contactId) {
+  const res = await query(
+    `INSERT INTO "GroupContacts" ("GroupId", "ContactId")
+      VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *`,
+    [groupId, contactId]
+  );
+  return res.rows[0] || null;
+}
+
+async function removeContactFromGroup(groupId, contactId) {
+  const res = await query(
+    `DELETE FROM "GroupContacts" WHERE "GroupId" = $1 AND "ContactId" = $2 RETURNING *`,
+    [groupId, contactId]
+  );
+  return res.rows[0] || null;
+}
+
+async function getGroupContacts(groupId) {
+  const res = await query(
+    `SELECT c.* FROM "Contacts" c
+     JOIN "GroupContacts" gc ON gc."ContactId" = c.id
+     WHERE gc."GroupId" = $1 ORDER BY c.name ASC`,
+    [groupId]
+  );
+  return res.rows;
+}
+
+// ── Responder CRUD ────────────────────────────────────────────
+
+async function createResponder({ id, name, description, modules, organization_Id }) {
+  const res = await query(
+    `INSERT INTO "Responder" (id, name, description, modules, "organization_Id")
+      VALUES ($1, $2, $3, $4::"enum_Responder_modules", $5)
+      RETURNING *`,
+    [id, name, description, modules || null, organization_Id]
+  );
+  return res.rows[0];
+}
+
+async function getAllResponders(filters = {}) {
+  let sql = `SELECT r.*, o.name AS organization_name FROM "Responder" r
+             LEFT JOIN "Organization" o ON r."organization_Id" = o.id`;
+  const params = [];
+  const clauses = [];
+  if (filters.modules) { params.push(filters.modules); clauses.push(`r.modules = $${params.length}::"enum_Responder_modules"`); }
+  if (filters.organization_Id) { params.push(filters.organization_Id); clauses.push(`r."organization_Id" = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY r.name ASC';
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function getResponderById(id) {
+  const res = await query(`SELECT * FROM "Responder" WHERE id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateResponder(id, { name, description, modules, organization_Id }) {
+  const res = await query(
+    `UPDATE "Responder"
+        SET name = $2, description = $3, modules = $4::"enum_Responder_modules",
+            "organization_Id" = $5
+      WHERE id = $1 RETURNING *`,
+    [id, name, description, modules || null, organization_Id]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteResponder(id) {
+  const res = await query(`DELETE FROM "Responder" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
 // ── Exports ───────────────────────────────────────────────────
 module.exports = {
   pool,
@@ -667,11 +995,18 @@ module.exports = {
   getStats,
   getActiveConferences,
   // organization CRUD
-  createOrganization,
-  getAllOrganizations,
-  getOrganizationById,
-  updateOrganization,
-  deleteOrganization
+  createOrganization, getAllOrganizations, getOrganizationById, updateOrganization, deleteOrganization,
+  // department CRUD
+  createDepartment, getAllDepartments, getDepartmentById, updateDepartment, deleteDepartment,
+  // contacts CRUD
+  createContact, getAllContacts, getContactById, updateContact, deleteContact,
+  // location CRUD
+  createLocation, getAllLocations, getLocationById, updateLocation, deleteLocation,
+  // group CRUD
+  createGroup, getAllGroups, getGroupById, updateGroup, deleteGroup,
+  addContactToGroup, removeContactFromGroup, getGroupContacts,
+  // responder CRUD
+  createResponder, getAllResponders, getResponderById, updateResponder, deleteResponder
 };
 
 // ── Run schema bootstrap when called directly ─────────────────

@@ -1088,12 +1088,66 @@ async function createAdminUser() {
   }
 }
 
+// ── Module context (ENS / ERS) ────────────────────────────────
+let currentModule = 'ens';
+function setModuleCtx(mod) {
+  currentModule = mod;
+  const label = mod.toUpperCase();
+  // update hidden module fields and titles for all add forms
+  ['orgModules','deptModules','contactModules','locationModules','groupModules','responderModules'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = mod;
+  });
+  const titleMap = {
+    addOrgTitle: `Add Organization (${label})`,
+    addDeptTitle: `Add Department (${label})`,
+    addContactTitle: `Add Contact (${label})`,
+    addLocationTitle: `Add Location (${label})`,
+    addGroupTitle: `Add Group (${label})`,
+    addResponderTitle: `Add Responder (${label})`
+  };
+  Object.entries(titleMap).forEach(([id, txt]) => {
+    const el = document.getElementById(id); if (el) el.textContent = txt;
+  });
+  // load org dropdowns filtered by module
+  loadOrgDropdowns(mod);
+}
+
+async function loadOrgDropdowns(mod) {
+  const m = mod || currentModule;
+  try {
+    const res = await fetch(`/api/organizations/list?modules=${m}`, { credentials: 'include' });
+    const data = await res.json();
+    const orgs = data.data || [];
+    const html = '<option value="">— Select Organization —</option>' +
+      orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+    ['deptOrg','contactOrg','locationOrg','groupOrg','responderOrg',
+     'editDeptOrg','editContactOrg','editLocationOrg','editGroupOrg','editResponderOrg'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    });
+  } catch (e) { /* ignore */ }
+}
+
+async function loadDeptDropdown(selectId, orgId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None —</option>';
+  if (!orgId) return;
+  try {
+    const res = await fetch(`/api/departments/list?organization_Id=${orgId}`, { credentials: 'include' });
+    const data = await res.json();
+    (data.data || []).forEach(d => {
+      sel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+    });
+  } catch (e) { /* ignore */ }
+}
+
 // ── Organizations ─────────────────────────────────────────────
 async function addOrganization() {
   const name        = document.getElementById('orgName').value.trim();
   const type        = document.getElementById('orgType').value.trim();
   const description = document.getElementById('orgDescription').value.trim();
-  const modules     = document.getElementById('orgModules').value || null;
+  const modules     = document.getElementById('orgModules').value || currentModule;
   const active      = document.getElementById('orgActive').checked;
 
   if (!name || !type) {
@@ -1113,8 +1167,8 @@ async function addOrganization() {
       document.getElementById('orgName').value = '';
       document.getElementById('orgType').value = '';
       document.getElementById('orgDescription').value = '';
-      document.getElementById('orgModules').value = '';
       document.getElementById('orgActive').checked = true;
+      loadOrgDropdowns(currentModule);
     } else {
       toast('error', 'Failed to create organization', data.error || 'Unknown error');
     }
@@ -1123,9 +1177,13 @@ async function addOrganization() {
   }
 }
 
-async function loadOrganizations() {
+async function loadOrganizations(mod) {
+  const m = mod || currentModule;
+  const label = m.toUpperCase();
+  const title = document.querySelector('#orgListSection h2');
+  if (title) title.textContent = `Organizations (${label})`;
   try {
-    const res  = await fetch('/api/organizations/list', { credentials: 'include' });
+    const res  = await fetch(`/api/organizations/list?modules=${m}`, { credentials: 'include' });
     const data = await res.json();
     const tbody = document.querySelector('#org-table tbody');
     tbody.innerHTML = '';
@@ -1254,6 +1312,576 @@ async function deleteOrganization(id, name) {
   } catch (err) {
     toast('error', 'Network error', err.message);
   }
+}
+
+// ── Departments ───────────────────────────────────────────────
+
+async function addDepartment() {
+  const name = document.getElementById('deptName').value.trim();
+  const description = document.getElementById('deptDescription').value.trim();
+  const organization_Id = document.getElementById('deptOrg').value;
+  const modules = document.getElementById('deptModules').value || currentModule;
+
+  if (!name || !organization_Id) {
+    toast('warn', 'Missing fields', 'Department name and organization are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/departments/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, description, organization_Id, modules })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Department created', `${name} added.`);
+      document.getElementById('deptName').value = '';
+      document.getElementById('deptDescription').value = '';
+    } else {
+      toast('error', 'Failed', data.error);
+    }
+  } catch (err) { toast('error', 'Network error', err.message); }
+}
+
+async function loadDepartments(mod) {
+  const m = mod || currentModule;
+  const label = m.toUpperCase();
+  const title = document.getElementById('deptListTitle');
+  if (title) title.textContent = `Departments (${label})`;
+  try {
+    const res = await fetch(`/api/departments/list?modules=${m}`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#dept-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><span class="icon">🏥</span>No departments yet</div></td></tr>';
+      return;
+    }
+    items.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(d.name)}</td><td>${esc(d.description||'—')}</td><td>${esc(d.organization_name||'—')}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditDept(d); acts.appendChild(eb);
+      const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteDepartment(d.id,d.name); acts.appendChild(db2);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error', 'Failed to load departments', err.message); }
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function openEditDept(d) {
+  document.getElementById('editDeptId').value = d.id;
+  document.getElementById('editDeptName').value = d.name;
+  document.getElementById('editDeptDescription').value = d.description || '';
+  document.getElementById('editDeptModules').value = d.modules || currentModule;
+  loadOrgDropdowns(d.modules || currentModule).then(() => {
+    document.getElementById('editDeptOrg').value = d.organization_Id || '';
+  });
+  document.getElementById('edit-dept-overlay').style.display = 'flex';
+}
+function closeEditDept() { document.getElementById('edit-dept-overlay').style.display = 'none'; }
+
+async function saveEditDept() {
+  const id = document.getElementById('editDeptId').value;
+  const name = document.getElementById('editDeptName').value.trim();
+  const description = document.getElementById('editDeptDescription').value.trim();
+  const organization_Id = document.getElementById('editDeptOrg').value;
+  const modules = document.getElementById('editDeptModules').value;
+  if (!name || !organization_Id) { toast('warn','Missing fields','Name and organization are required.'); return; }
+  try {
+    const res = await fetch(`/api/departments/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, description, organization_Id, modules })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Updated',`${name} updated.`); closeEditDept(); loadDepartments(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function deleteDepartment(id, name) {
+  const ok = await showConfirm('Delete Department', `Delete "${name}"? Related contacts/locations will lose this department reference.`, 'Delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/departments/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Deleted',`${name} removed.`); loadDepartments(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+// ── Contacts ──────────────────────────────────────────────────
+
+async function addContact() {
+  const name = document.getElementById('contactName').value.trim();
+  const role = document.getElementById('contactRole').value.trim();
+  const phone = document.getElementById('contactPhone').value.trim();
+  const email = document.getElementById('contactEmail').value.trim();
+  const organization_Id = document.getElementById('contactOrg').value;
+  const department_Id = document.getElementById('contactDept').value || null;
+  const modules = document.getElementById('contactModules').value || currentModule;
+
+  if (!name || !role || !phone || !organization_Id) {
+    toast('warn', 'Missing fields', 'Name, role, phone, and organization are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/contacts/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, role, phone, email, organization_Id, department_Id, modules })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Contact created', `${name} added.`);
+      document.getElementById('contactName').value = '';
+      document.getElementById('contactRole').value = '';
+      document.getElementById('contactPhone').value = '';
+      document.getElementById('contactEmail').value = '';
+    } else {
+      toast('error', 'Failed', data.error);
+    }
+  } catch (err) { toast('error', 'Network error', err.message); }
+}
+
+async function loadContacts(mod) {
+  const m = mod || currentModule;
+  const label = m.toUpperCase();
+  const title = document.getElementById('contactListTitle');
+  if (title) title.textContent = `Contacts (${label})`;
+  try {
+    const res = await fetch(`/api/contacts/list?modules=${m}`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#contact-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><span class="icon">👥</span>No contacts yet</div></td></tr>';
+      return;
+    }
+    items.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(c.name)}</td><td>${esc(c.role)}</td><td>${esc(c.phone)}</td><td>${esc(c.email||'—')}</td><td>${esc(c.organization_name||'—')}</td><td>${esc(c.department_name||'—')}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditContact(c); acts.appendChild(eb);
+      const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteContactItem(c.id,c.name); acts.appendChild(db2);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error', 'Failed to load contacts', err.message); }
+}
+
+function openEditContact(c) {
+  document.getElementById('editContactId').value = c.id;
+  document.getElementById('editContactName').value = c.name;
+  document.getElementById('editContactRole').value = c.role;
+  document.getElementById('editContactPhone').value = c.phone;
+  document.getElementById('editContactEmail').value = c.email || '';
+  document.getElementById('editContactModules').value = c.modules || currentModule;
+  loadOrgDropdowns(c.modules || currentModule).then(() => {
+    document.getElementById('editContactOrg').value = c.organization_Id || '';
+    if (c.organization_Id) {
+      loadDeptDropdown('editContactDept', c.organization_Id).then(() => {
+        document.getElementById('editContactDept').value = c.department_Id || '';
+      });
+    }
+  });
+  document.getElementById('edit-contact-overlay').style.display = 'flex';
+}
+function closeEditContact() { document.getElementById('edit-contact-overlay').style.display = 'none'; }
+
+async function saveEditContact() {
+  const id = document.getElementById('editContactId').value;
+  const name = document.getElementById('editContactName').value.trim();
+  const role = document.getElementById('editContactRole').value.trim();
+  const phone = document.getElementById('editContactPhone').value.trim();
+  const email = document.getElementById('editContactEmail').value.trim();
+  const organization_Id = document.getElementById('editContactOrg').value;
+  const department_Id = document.getElementById('editContactDept').value || null;
+  const modules = document.getElementById('editContactModules').value;
+  if (!name || !role || !phone || !organization_Id) { toast('warn','Missing fields','Name, role, phone, and organization are required.'); return; }
+  try {
+    const res = await fetch(`/api/contacts/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, role, phone, email, organization_Id, department_Id, modules })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Updated',`${name} updated.`); closeEditContact(); loadContacts(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function deleteContactItem(id, name) {
+  const ok = await showConfirm('Delete Contact', `Delete "${name}"?`, 'Delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Deleted',`${name} removed.`); loadContacts(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+// ── Locations ─────────────────────────────────────────────────
+
+async function addLocation() {
+  const name = document.getElementById('locationName').value.trim();
+  const organization_Id = document.getElementById('locationOrg').value;
+  const department_Id = document.getElementById('locationDept').value || null;
+  const modules = document.getElementById('locationModules').value || currentModule;
+
+  if (!name || !organization_Id) {
+    toast('warn', 'Missing fields', 'Location name and organization are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/locations/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, modules, organization_Id, department_Id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Location created', `${name} added.`);
+      document.getElementById('locationName').value = '';
+    } else {
+      toast('error', 'Failed', data.error);
+    }
+  } catch (err) { toast('error', 'Network error', err.message); }
+}
+
+async function loadLocations(mod) {
+  const m = mod || currentModule;
+  const label = m.toUpperCase();
+  const title = document.getElementById('locationListTitle');
+  if (title) title.textContent = `Locations (${label})`;
+  try {
+    const res = await fetch(`/api/locations/list?modules=${m}`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#location-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><span class="icon">📍</span>No locations yet</div></td></tr>';
+      return;
+    }
+    items.forEach(l => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(l.name)}</td><td>${esc(l.organization_name||'—')}</td><td>${esc(l.department_name||'—')}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditLocation(l); acts.appendChild(eb);
+      const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteLocationItem(l.id,l.name); acts.appendChild(db2);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error', 'Failed to load locations', err.message); }
+}
+
+function openEditLocation(l) {
+  document.getElementById('editLocationId').value = l.id;
+  document.getElementById('editLocationName').value = l.name;
+  document.getElementById('editLocationModules').value = l.modules || currentModule;
+  loadOrgDropdowns(l.modules || currentModule).then(() => {
+    document.getElementById('editLocationOrg').value = l.organization_Id || '';
+    if (l.organization_Id) {
+      loadDeptDropdown('editLocationDept', l.organization_Id).then(() => {
+        document.getElementById('editLocationDept').value = l.department_Id || '';
+      });
+    }
+  });
+  document.getElementById('edit-location-overlay').style.display = 'flex';
+}
+function closeEditLocation() { document.getElementById('edit-location-overlay').style.display = 'none'; }
+
+async function saveEditLocation() {
+  const id = document.getElementById('editLocationId').value;
+  const name = document.getElementById('editLocationName').value.trim();
+  const organization_Id = document.getElementById('editLocationOrg').value;
+  const department_Id = document.getElementById('editLocationDept').value || null;
+  const modules = document.getElementById('editLocationModules').value;
+  if (!name || !organization_Id) { toast('warn','Missing fields','Name and organization are required.'); return; }
+  try {
+    const res = await fetch(`/api/locations/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, modules, organization_Id, department_Id })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Updated',`${name} updated.`); closeEditLocation(); loadLocations(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function deleteLocationItem(id, name) {
+  const ok = await showConfirm('Delete Location', `Delete "${name}"?`, 'Delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/locations/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Deleted',`${name} removed.`); loadLocations(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+// ── Groups ────────────────────────────────────────────────────
+
+async function addGroup() {
+  const name = document.getElementById('groupName').value.trim();
+  const type = document.getElementById('groupType').value || null;
+  const description = document.getElementById('groupDescription').value.trim();
+  const organization_Id = document.getElementById('groupOrg').value;
+  const modules = document.getElementById('groupModules').value || currentModule;
+
+  if (!name || !organization_Id) {
+    toast('warn', 'Missing fields', 'Group name and organization are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/groups/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, type, description, organization_Id, modules })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Group created', `${name} added.`);
+      document.getElementById('groupName').value = '';
+      document.getElementById('groupType').value = '';
+      document.getElementById('groupDescription').value = '';
+    } else {
+      toast('error', 'Failed', data.error);
+    }
+  } catch (err) { toast('error', 'Network error', err.message); }
+}
+
+async function loadGroups(mod) {
+  const m = mod || currentModule;
+  const label = m.toUpperCase();
+  const title = document.getElementById('groupListTitle');
+  if (title) title.textContent = `Groups (${label})`;
+  try {
+    const res = await fetch(`/api/groups/list?modules=${m}`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#group-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><span class="icon">📂</span>No groups yet</div></td></tr>';
+      return;
+    }
+    items.forEach(g => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(g.name)}</td><td>${esc(g.type||'—')}</td><td>${esc(g.description||'—')}</td><td>${esc(g.organization_name||'—')}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditGroup(g); acts.appendChild(eb);
+      const cb = document.createElement('button'); cb.textContent='Contacts'; cb.className='btn'; cb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; cb.onclick=()=>openGroupContacts(g); acts.appendChild(cb);
+      const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteGroupItem(g.id,g.name); acts.appendChild(db2);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error', 'Failed to load groups', err.message); }
+}
+
+function openEditGroup(g) {
+  document.getElementById('editGroupId').value = g.id;
+  document.getElementById('editGroupName').value = g.name;
+  document.getElementById('editGroupType').value = g.type || '';
+  document.getElementById('editGroupDescription').value = g.description || '';
+  document.getElementById('editGroupModules').value = g.modules || currentModule;
+  loadOrgDropdowns(g.modules || currentModule).then(() => {
+    document.getElementById('editGroupOrg').value = g.organization_Id || '';
+  });
+  document.getElementById('edit-group-overlay').style.display = 'flex';
+}
+function closeEditGroup() { document.getElementById('edit-group-overlay').style.display = 'none'; }
+
+async function saveEditGroup() {
+  const id = document.getElementById('editGroupId').value;
+  const name = document.getElementById('editGroupName').value.trim();
+  const type = document.getElementById('editGroupType').value || null;
+  const description = document.getElementById('editGroupDescription').value.trim();
+  const organization_Id = document.getElementById('editGroupOrg').value;
+  const modules = document.getElementById('editGroupModules').value;
+  if (!name || !organization_Id) { toast('warn','Missing fields','Name and organization are required.'); return; }
+  try {
+    const res = await fetch(`/api/groups/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, type, description, organization_Id, modules })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Updated',`${name} updated.`); closeEditGroup(); loadGroups(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function deleteGroupItem(id, name) {
+  const ok = await showConfirm('Delete Group', `Delete "${name}"? Contact assignments will also be removed.`, 'Delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/groups/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Deleted',`${name} removed.`); loadGroups(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+// Group contacts management
+async function openGroupContacts(g) {
+  document.getElementById('groupContactsGroupId').value = g.id;
+  document.getElementById('groupContactsTitle').textContent = `Contacts in "${g.name}"`;
+  document.getElementById('group-contacts-overlay').style.display = 'flex';
+  // load available contacts for the dropdown
+  try {
+    const res = await fetch(`/api/contacts/list?modules=${g.modules||currentModule}`, { credentials: 'include' });
+    const data = await res.json();
+    const sel = document.getElementById('addGroupContactSelect');
+    sel.innerHTML = '<option value="">— Select Contact —</option>';
+    (data.data || []).forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.name} (${c.phone})</option>`;
+    });
+  } catch (e) { /* ignore */ }
+  loadGroupContactsList(g.id);
+}
+
+async function loadGroupContactsList(groupId) {
+  const gid = groupId || document.getElementById('groupContactsGroupId').value;
+  try {
+    const res = await fetch(`/api/groups/${gid}/contacts`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#group-contacts-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">No contacts in this group</div></td></tr>';
+      return;
+    }
+    items.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(c.name)}</td><td>${esc(c.phone)}</td><td>${esc(c.role)}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const rb = document.createElement('button'); rb.textContent='Remove'; rb.className='btn'; rb.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;';
+      rb.onclick = () => removeContactFromGroupUI(gid, c.id, c.name);
+      acts.appendChild(rb);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error','Failed to load group contacts',err.message); }
+}
+
+async function addContactToGroupUI() {
+  const groupId = document.getElementById('groupContactsGroupId').value;
+  const contactId = document.getElementById('addGroupContactSelect').value;
+  if (!contactId) { toast('warn','Select contact','Please select a contact to add.'); return; }
+  try {
+    const res = await fetch(`/api/groups/${groupId}/contacts`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ contactId })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Added','Contact added to group.'); loadGroupContactsList(groupId); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function removeContactFromGroupUI(groupId, contactId, name) {
+  const ok = await showConfirm('Remove Contact', `Remove "${name}" from this group?`, 'Remove');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/groups/${groupId}/contacts/${contactId}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Removed',`${name} removed from group.`); loadGroupContactsList(groupId); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+function closeGroupContacts() { document.getElementById('group-contacts-overlay').style.display = 'none'; }
+
+// ── Responders ────────────────────────────────────────────────
+
+async function addResponder() {
+  const name = document.getElementById('responderName').value.trim();
+  const description = document.getElementById('responderDescription').value.trim();
+  const organization_Id = document.getElementById('responderOrg').value;
+  const modules = document.getElementById('responderModules').value || currentModule;
+
+  if (!name || !description || !organization_Id) {
+    toast('warn', 'Missing fields', 'Name, description, and organization are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/responders/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, description, modules, organization_Id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'Responder created', `${name} added.`);
+      document.getElementById('responderName').value = '';
+      document.getElementById('responderDescription').value = '';
+    } else {
+      toast('error', 'Failed', data.error);
+    }
+  } catch (err) { toast('error', 'Network error', err.message); }
+}
+
+async function loadResponders(mod) {
+  const m = mod || currentModule;
+  const label = m.toUpperCase();
+  const title = document.getElementById('responderListTitle');
+  if (title) title.textContent = `Responders (${label})`;
+  try {
+    const res = await fetch(`/api/responders/list?modules=${m}`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#responder-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><span class="icon">🚨</span>No responders yet</div></td></tr>';
+      return;
+    }
+    items.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(r.name)}</td><td>${esc(r.description||'—')}</td><td>${esc(r.organization_name||'—')}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditResponder(r); acts.appendChild(eb);
+      const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteResponderItem(r.id,r.name); acts.appendChild(db2);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error', 'Failed to load responders', err.message); }
+}
+
+function openEditResponder(r) {
+  document.getElementById('editResponderId').value = r.id;
+  document.getElementById('editResponderName').value = r.name;
+  document.getElementById('editResponderDescription').value = r.description || '';
+  document.getElementById('editResponderModules').value = r.modules || currentModule;
+  loadOrgDropdowns(r.modules || currentModule).then(() => {
+    document.getElementById('editResponderOrg').value = r.organization_Id || '';
+  });
+  document.getElementById('edit-responder-overlay').style.display = 'flex';
+}
+function closeEditResponder() { document.getElementById('edit-responder-overlay').style.display = 'none'; }
+
+async function saveEditResponder() {
+  const id = document.getElementById('editResponderId').value;
+  const name = document.getElementById('editResponderName').value.trim();
+  const description = document.getElementById('editResponderDescription').value.trim();
+  const organization_Id = document.getElementById('editResponderOrg').value;
+  const modules = document.getElementById('editResponderModules').value;
+  if (!name || !description || !organization_Id) { toast('warn','Missing fields','Name, description, and organization are required.'); return; }
+  try {
+    const res = await fetch(`/api/responders/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, description, modules, organization_Id })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Updated',`${name} updated.`); closeEditResponder(); loadResponders(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function deleteResponderItem(id, name) {
+  const ok = await showConfirm('Delete Responder', `Delete "${name}"?`, 'Delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/responders/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Deleted',`${name} removed.`); loadResponders(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
 }
 
 // ── Init ──────────────────────────────────────────────────────

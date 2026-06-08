@@ -123,6 +123,13 @@ app.use('/api/history',       requireLogin, require('./routes/conferenceHistory'
 // Organization Management (PostgreSQL-backed)
 app.use('/api/organizations', requireLogin, require('./routes/organizations'));
 
+// Emergency Management: Departments, Contacts, Locations, Groups, Responders
+app.use('/api/departments',   requireLogin, require('./routes/departments'));
+app.use('/api/contacts',      requireLogin, require('./routes/contacts'));
+app.use('/api/locations',     requireLogin, require('./routes/locations'));
+app.use('/api/groups',        requireLogin, require('./routes/groups'));
+app.use('/api/responders',    requireLogin, require('./routes/responders'));
+
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);

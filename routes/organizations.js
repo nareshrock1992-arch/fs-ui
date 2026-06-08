@@ -3,10 +3,12 @@ const router = express.Router();
 const crypto = require('crypto');
 const db = require('../db');
 
-// List all organizations
+// List organizations (with optional ?modules=ens|ers filter)
 router.get('/list', async (req, res) => {
   try {
-    const orgs = await db.getAllOrganizations();
+    const filters = {};
+    if (req.query.modules) filters.modules = req.query.modules;
+    const orgs = await db.getAllOrganizations(filters);
     res.json({ success: true, data: orgs });
   } catch (err) {
     console.error('[org] list error:', err.message);
