@@ -244,6 +244,11 @@ select:focus { border-color: var(--border-focus); outline: none; }
   padding: 8px 18px 8px 36px;
 }
 
+/* Third-level items (e.g. Organizations inside Org Mgmt inside ENS/ERS) */
+.nested-submenu .nested-submenu > div {
+  padding-left: 52px;
+}
+
 /* === Content === */
 .content {
   flex: 1;

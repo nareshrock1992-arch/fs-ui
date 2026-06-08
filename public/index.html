@@ -101,40 +101,48 @@
     <div onclick="showSection('registeredSection')">📡 Registered Users</div>
   </div>
 
-  <!-- ENS — Emergency Blast Message -->
-  <div class="menu-item" id="menu-ens" onclick="toggleMenu('ensMenu', 'menu-ens')">
-    📢 ENS <span class="arrow">▾</span>
+  <!-- Emergency Services (parent of ENS & ERS) -->
+  <div class="menu-item" id="menu-emergency" onclick="toggleMenu('emergencyMenu', 'menu-emergency')">
+    🚨 Emergency Services <span class="arrow">▾</span>
   </div>
-  <div class="submenu" id="ensMenu">
-    <div onclick="showSection('ensNotifSection')">🔔 Notification Configuration</div>
-    <div class="menu-item nested" id="menu-ens-org" onclick="toggleMenu('ensOrgMenu', 'menu-ens-org')">
-      🏢 Organization Management <span class="arrow">▾</span>
-    </div>
-    <div class="submenu nested-submenu" id="ensOrgMenu">
-      <div onclick="showSection('ensOrganizationsSection')">🏬 Organizations</div>
-      <div onclick="showSection('ensDepartmentsSection')">🗂 Departments</div>
-      <div onclick="showSection('ensUsersSection')">👥 Users</div>
-      <div onclick="showSection('ensGroupsSection')">👨‍👩‍👧 Groups</div>
-    </div>
-    <div onclick="showSection('ensReportsSection')">📋 Reports</div>
-  </div>
+  <div class="submenu" id="emergencyMenu">
 
-  <!-- ERS — Emergency Blast Dial -->
-  <div class="menu-item" id="menu-ers" onclick="toggleMenu('ersMenu', 'menu-ers')">
-    📞 ERS <span class="arrow">▾</span>
-  </div>
-  <div class="submenu" id="ersMenu">
-    <div onclick="showSection('ersNotifSection')">🔔 Notification Configuration</div>
-    <div class="menu-item nested" id="menu-ers-org" onclick="toggleMenu('ersOrgMenu', 'menu-ers-org')">
-      🏢 Organization Management <span class="arrow">▾</span>
+    <!-- ENS — Emergency Blast Message -->
+    <div class="menu-item nested" id="menu-ens" onclick="toggleMenu('ensMenu', 'menu-ens')">
+      📢 ENS <span class="arrow">▾</span>
     </div>
-    <div class="submenu nested-submenu" id="ersOrgMenu">
-      <div onclick="showSection('ersOrganizationsSection')">🏬 Organizations</div>
-      <div onclick="showSection('ersDepartmentsSection')">🗂 Departments</div>
-      <div onclick="showSection('ersUsersSection')">👥 Users</div>
-      <div onclick="showSection('ersGroupsSection')">👨‍👩‍👧 Groups</div>
+    <div class="submenu nested-submenu" id="ensMenu">
+      <div onclick="showSection('ensNotifSection')">🔔 Notification Configuration</div>
+      <div class="menu-item nested" id="menu-ens-org" onclick="toggleMenu('ensOrgMenu', 'menu-ens-org')">
+        🏢 Organization Management <span class="arrow">▾</span>
+      </div>
+      <div class="submenu nested-submenu" id="ensOrgMenu">
+        <div onclick="showSection('ensOrganizationsSection')">🏬 Organizations</div>
+        <div onclick="showSection('ensDepartmentsSection')">🗂 Departments</div>
+        <div onclick="showSection('ensUsersSection')">👥 Users</div>
+        <div onclick="showSection('ensGroupsSection')">👨‍👩‍👧 Groups</div>
+      </div>
+      <div onclick="showSection('ensReportsSection')">📋 Reports</div>
     </div>
-    <div onclick="showSection('ersReportsSection')">📋 Reports</div>
+
+    <!-- ERS — Emergency Blast Dial -->
+    <div class="menu-item nested" id="menu-ers" onclick="toggleMenu('ersMenu', 'menu-ers')">
+      📞 ERS <span class="arrow">▾</span>
+    </div>
+    <div class="submenu nested-submenu" id="ersMenu">
+      <div onclick="showSection('ersNotifSection')">🔔 Notification Configuration</div>
+      <div class="menu-item nested" id="menu-ers-org" onclick="toggleMenu('ersOrgMenu', 'menu-ers-org')">
+        🏢 Organization Management <span class="arrow">▾</span>
+      </div>
+      <div class="submenu nested-submenu" id="ersOrgMenu">
+        <div onclick="showSection('ersOrganizationsSection')">🏬 Organizations</div>
+        <div onclick="showSection('ersDepartmentsSection')">🗂 Departments</div>
+        <div onclick="showSection('ersUsersSection')">👥 Users</div>
+        <div onclick="showSection('ersGroupsSection')">👨‍👩‍👧 Groups</div>
+      </div>
+      <div onclick="showSection('ersReportsSection')">📋 Reports</div>
+    </div>
+
   </div>
 
   <!-- Sidebar Footer (Settings) -->
