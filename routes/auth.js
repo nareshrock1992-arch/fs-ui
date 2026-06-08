@@ -19,6 +19,7 @@ function loadUsersSync() {
 	try {
 		return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8') || '[]');
 	} catch (e) {
+		console.error('[auth] Failed to load/parse users.json:', e.message);
 		return [];
 	}
 }
@@ -110,7 +111,12 @@ router.post('/register', async (req, res) => {
 
 router.post('/logout',(req,res)=>{
 
-req.session.destroy(()=>{
+req.session.destroy((err)=>{
+
+if (err) {
+  console.error('[auth] Session destroy error:', err.message);
+  return res.status(500).json({ success: false, error: 'Failed to destroy session' });
+}
 
 res.json({
 

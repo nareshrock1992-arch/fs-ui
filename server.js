@@ -120,6 +120,14 @@ app.use('/api/conferences',   requireLogin, require('./routes/conferenceAdvanced
 // History / Reporting (PostgreSQL-backed)
 app.use('/api/history',       requireLogin, require('./routes/conferenceHistory'));
 
+// ── Catch-all error handler ───────────────────────────────────
+app.use((err, req, res, _next) => {
+  console.error('[server] Unhandled route error:', err.stack || err.message);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);

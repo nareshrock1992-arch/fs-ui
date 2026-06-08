@@ -1,84 +1,31 @@
-const db=require("./db")
+const db = require("./db");
 
-let previousMembers={}
+let previousMembers = {};
 
-function updateConferenceState(participants){
+function updateConferenceState(participants) {
+  const current = {};
 
-const current={}
+  participants.forEach(p => {
+    const key = `${p.conferenceName}_${p.memberId}`;
+    current[key] = p;
 
-participants.forEach(p=>{
+    if (!previousMembers[key]) {
+      db.recordJoin(p.conferenceName, p.memberId, p.user)
+        .catch(err => console.error('[tracker] Failed to record join for', key, err.message));
+      console.log("JOIN", key);
+    }
+  });
 
-const key=`${p.conferenceName}_${p.memberId}`
+  Object.keys(previousMembers).forEach(key => {
+    if (!current[key]) {
+      const old = previousMembers[key];
+      db.recordLeave(old.conferenceName, old.memberId)
+        .catch(err => console.error('[tracker] Failed to record leave for', key, err.message));
+      console.log("LEAVE", key);
+    }
+  });
 
-current[key]=p
-
-if(!previousMembers[key]){
-
-db.run(
-
-`INSERT INTO conference_history
-(conference_name,member_id,extension)
-
-VALUES(?,?,?)`,
-
-[p.conferenceName,p.memberId,p.user]
-
-)
-
-console.log("JOIN",key)
-
+  previousMembers = current;
 }
 
-})
-
-Object.keys(previousMembers).forEach(key=>{
-
-if(!current[key]){
-
-const old=previousMembers[key]
-
-db.run(
-
-`
-
-UPDATE conference_history
-
-SET
-
-leave_time=datetime('now'),
-
-duration=
-
-strftime('%s','now')
-
--
-
-strftime('%s',join_time),
-
-active=0
-
-WHERE
-
-conference_name=?
-
-AND member_id=?
-
-AND active=1
-
-`,
-
-[old.conferenceName,old.memberId]
-
-)
-
-console.log("LEAVE",key)
-
-}
-
-})
-
-previousMembers=current
-
-}
-
-module.exports={updateConferenceState}
+module.exports = { updateConferenceState };
