@@ -101,6 +101,42 @@
     <div onclick="showSection('registeredSection')">📡 Registered Users</div>
   </div>
 
+  <!-- ENS — Emergency Blast Message -->
+  <div class="menu-item" id="menu-ens" onclick="toggleMenu('ensMenu', 'menu-ens')">
+    📢 ENS <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="ensMenu">
+    <div onclick="showSection('ensNotifSection')">🔔 Notification Configuration</div>
+    <div class="menu-item nested" id="menu-ens-org" onclick="toggleMenu('ensOrgMenu', 'menu-ens-org')">
+      🏢 Organization Management <span class="arrow">▾</span>
+    </div>
+    <div class="submenu nested-submenu" id="ensOrgMenu">
+      <div onclick="showSection('ensOrganizationsSection')">🏬 Organizations</div>
+      <div onclick="showSection('ensDepartmentsSection')">🗂 Departments</div>
+      <div onclick="showSection('ensUsersSection')">👥 Users</div>
+      <div onclick="showSection('ensGroupsSection')">👨‍👩‍👧 Groups</div>
+    </div>
+    <div onclick="showSection('ensReportsSection')">📋 Reports</div>
+  </div>
+
+  <!-- ERS — Emergency Blast Dial -->
+  <div class="menu-item" id="menu-ers" onclick="toggleMenu('ersMenu', 'menu-ers')">
+    📞 ERS <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="ersMenu">
+    <div onclick="showSection('ersNotifSection')">🔔 Notification Configuration</div>
+    <div class="menu-item nested" id="menu-ers-org" onclick="toggleMenu('ersOrgMenu', 'menu-ers-org')">
+      🏢 Organization Management <span class="arrow">▾</span>
+    </div>
+    <div class="submenu nested-submenu" id="ersOrgMenu">
+      <div onclick="showSection('ersOrganizationsSection')">🏬 Organizations</div>
+      <div onclick="showSection('ersDepartmentsSection')">🗂 Departments</div>
+      <div onclick="showSection('ersUsersSection')">👥 Users</div>
+      <div onclick="showSection('ersGroupsSection')">👨‍👩‍👧 Groups</div>
+    </div>
+    <div onclick="showSection('ersReportsSection')">📋 Reports</div>
+  </div>
+
   <!-- Sidebar Footer (Settings) -->
   <div class="sidebar-footer">
     <div class="menu-item" id="menu-settings" onclick="toggleMenu('settingsMenu', 'menu-settings')">
@@ -274,6 +310,116 @@
         <thead><tr><th>Username</th><th>Admin</th></tr></thead>
         <tbody></tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- ===================== ENS — Emergency Blast Message ===================== -->
+  <section id="ensNotifSection" class="section">
+    <h2>ENS · Notification Configuration</h2>
+    <div class="placeholder-card">
+      <span class="icon">🔔</span>
+      <p>Configure emergency <strong>blast message</strong> templates, delivery channels (SMS / email / push) and escalation rules.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ensOrganizationsSection" class="section">
+    <h2>ENS · Organizations</h2>
+    <div class="placeholder-card">
+      <span class="icon">🏬</span>
+      <p>Manage organizations enrolled in the Emergency Notification Service.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ensDepartmentsSection" class="section">
+    <h2>ENS · Departments</h2>
+    <div class="placeholder-card">
+      <span class="icon">🗂</span>
+      <p>Manage departments within each organization for targeted blast messaging.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ensUsersSection" class="section">
+    <h2>ENS · Users</h2>
+    <div class="placeholder-card">
+      <span class="icon">👥</span>
+      <p>Manage users and their notification contact details.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ensGroupsSection" class="section">
+    <h2>ENS · Groups</h2>
+    <div class="placeholder-card">
+      <span class="icon">👨‍👩‍👧</span>
+      <p>Define recipient groups for emergency blast messages.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ensReportsSection" class="section">
+    <h2>ENS · Reports</h2>
+    <div class="placeholder-card">
+      <span class="icon">📋</span>
+      <p>Review delivery reports and audit logs for emergency blast messages.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <!-- ===================== ERS — Emergency Blast Dial ===================== -->
+  <section id="ersNotifSection" class="section">
+    <h2>ERS · Notification Configuration</h2>
+    <div class="placeholder-card">
+      <span class="icon">🔔</span>
+      <p>Configure emergency <strong>blast dial</strong> call flows, caller ID, retries and IVR prompts.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ersOrganizationsSection" class="section">
+    <h2>ERS · Organizations</h2>
+    <div class="placeholder-card">
+      <span class="icon">🏬</span>
+      <p>Manage organizations enrolled in the Emergency Response (blast dial) Service.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ersDepartmentsSection" class="section">
+    <h2>ERS · Departments</h2>
+    <div class="placeholder-card">
+      <span class="icon">🗂</span>
+      <p>Manage departments within each organization for targeted blast dials.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ersUsersSection" class="section">
+    <h2>ERS · Users</h2>
+    <div class="placeholder-card">
+      <span class="icon">👥</span>
+      <p>Manage users and the phone numbers reached during a blast dial.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ersGroupsSection" class="section">
+    <h2>ERS · Groups</h2>
+    <div class="placeholder-card">
+      <span class="icon">👨‍👩‍👧</span>
+      <p>Define call groups dialed during an emergency response.</p>
+      <p class="muted">This area is ready to build on.</p>
+    </div>
+  </section>
+
+  <section id="ersReportsSection" class="section">
+    <h2>ERS · Reports</h2>
+    <div class="placeholder-card">
+      <span class="icon">📋</span>
+      <p>Review call outcomes, answer rates and audit logs for blast dials.</p>
+      <p class="muted">This area is ready to build on.</p>
     </div>
   </section>
 
