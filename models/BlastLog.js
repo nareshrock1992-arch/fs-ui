@@ -1,0 +1,30 @@
+// blast_logs — per-recipient delivery / call records (powers Reports).
+module.exports = (sequelize, DataTypes) =>
+  sequelize.define('BlastLog', {
+    id:        { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    callid:    { type: DataTypes.STRING(255) },
+    caller_id: { type: DataTypes.STRING(255) },
+    record_start:    { type: DataTypes.DATE },
+    record_end:      { type: DataTypes.DATE },
+    record_duration: { type: DataTypes.INTEGER },
+    recording_file:  { type: DataTypes.STRING(255) },
+    blasted_to:        { type: DataTypes.STRING(255) },
+    attendance_status: { type: DataTypes.STRING(255) },
+    recording_name:    { type: DataTypes.STRING(255) },
+    recording_size:    { type: DataTypes.BIGINT },
+    recording_format:  { type: DataTypes.STRING(20) },
+    recording_duration_sec: { type: DataTypes.INTEGER },
+    recording_url:  { type: DataTypes.TEXT },
+    ens_number:     { type: DataTypes.TEXT },
+    created_at:     { type: DataTypes.DATE },
+    module:          { type: DataTypes.ENUM('ens', 'ers') },
+    conference_type: { type: DataTypes.ENUM('primary', 'secondary') },
+    answered_at:     { type: DataTypes.DATE },
+    group_type:      { type: DataTypes.ENUM('primary', 'secondary') },
+    blast_status:    { type: DataTypes.STRING(255), defaultValue: 'COMPLETED' },
+    attempt_number:  { type: DataTypes.INTEGER, defaultValue: 0 },
+    last_hangup_cause: { type: DataTypes.STRING(255) },
+  }, {
+    tableName: 'blast_logs',
+    timestamps: false,
+  });

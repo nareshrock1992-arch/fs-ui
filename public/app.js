@@ -109,6 +109,18 @@ function showSection(id) {
   if (id === 'monitorConferenceSection')  monitorConferences();
   if (id === 'reportSection')             loadHistory();
   if (id === 'adminSection')              loadAdminUsers();
+
+  // ENS/ERS section loaders (defined in ens-ers.js)
+  if (id === 'ensOrganizationsSection')   loadOrgs('ens');
+  if (id === 'ensDepartmentsSection')     loadDepts('ens');
+  if (id === 'ensUsersSection')           loadContacts('ens');
+  if (id === 'ensGroupsSection')          loadGroups('ens');
+  if (id === 'ensReportsSection')         loadReports('ens');
+  if (id === 'ersOrganizationsSection')   loadOrgs('ers');
+  if (id === 'ersDepartmentsSection')     loadDepts('ers');
+  if (id === 'ersUsersSection')           loadContacts('ers');
+  if (id === 'ersGroupsSection')          loadGroups('ers');
+  if (id === 'ersReportsSection')         loadReports('ers');
 }
 
 // ── Users ─────────────────────────────────────────────────────

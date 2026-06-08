@@ -221,9 +221,32 @@ select:focus { border-color: var(--border-focus); outline: none; }
   color: var(--text-sidebar);
 }
 
-.submenu div:hover {
+.submenu div:not(.nested-submenu):hover {
   background: var(--bg-submenu-hover);
   color: #fff;
+}
+
+/* Nested submenu group (e.g. Organization Management) */
+.submenu .menu-item.nested {
+  padding: 9px 18px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  background: var(--bg-submenu);
+}
+.submenu .menu-item.nested:hover { background: var(--bg-submenu-hover); color: #fff; }
+
+.submenu .nested-submenu {
+  padding: 0;
+  border-bottom: none;
+}
+.submenu .nested-submenu > div {
+  padding: 8px 18px 8px 36px;
+}
+
+/* Third-level items (e.g. Organizations inside Org Mgmt inside ENS/ERS) */
+.nested-submenu .nested-submenu > div {
+  padding-left: 52px;
 }
 
 /* === Content === */
@@ -237,6 +260,21 @@ select:focus { border-color: var(--border-focus); outline: none; }
 }
 
 .section { display: none; }
+
+/* Placeholder cards for not-yet-built sections (ENS / ERS) */
+.placeholder-card {
+  background: var(--bg-page);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 32px 28px;
+  text-align: center;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto;
+}
+.placeholder-card .icon { font-size: 36px; display: block; margin-bottom: 12px; }
+.placeholder-card p { margin: 6px 0; font-size: 14px; }
+.placeholder-card p.muted { font-size: 12px; color: var(--text-muted); }
 
 /* === Inputs === */
 input[type="text"],

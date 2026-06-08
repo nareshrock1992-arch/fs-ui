@@ -16,6 +16,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-secret-in-prod
 
 // ── Bootstrap DB schema before accepting requests ─────────────
 const db = require('./db');
+const models = require('./models');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
 const path = require('path');
@@ -44,6 +45,7 @@ async function maybeCreateInitialAdmin() {
 db.initSchema()
   .then(async () => {
     console.log('[server] DB schema verified.');
+    await models.initModels();
     await maybeCreateInitialAdmin();
   })
   .catch(err => {
@@ -119,6 +121,13 @@ app.use('/api/conferences',   requireLogin, require('./routes/conferenceAdvanced
 
 // History / Reporting (PostgreSQL-backed)
 app.use('/api/history',       requireLogin, require('./routes/conferenceHistory'));
+
+// ── Emergency Services (ENS/ERS) — Sequelize-backed ───────────
+app.use('/api/organizations', requireLogin, require('./routes/organizations'));
+app.use('/api/departments',   requireLogin, require('./routes/departments'));
+app.use('/api/contacts',      requireLogin, require('./routes/contacts'));
+app.use('/api/responders',    requireLogin, require('./routes/responders'));
+app.use('/api/reports',       requireLogin, require('./routes/reports'));
 
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
