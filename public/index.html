@@ -111,37 +111,47 @@
       ENS <span class="arrow">▾</span>
     </div>
     <div class="submenu" id="ensMenu" style="padding-left:24px;">
+      <div onclick="setModuleCtx('ens');showSection('ensConfigSection');loadENSList()">⚙️ ENS Configuration</div>
       <div onclick="showSection('addOrgSection');setModuleCtx('ens')">➕ Add Organization</div>
-      <div onclick="showSection('orgListSection');loadOrganizations('ens')">📋 Organizations</div>
+      <div onclick="setModuleCtx('ens');showSection('orgListSection');loadOrganizations('ens')">📋 Organizations</div>
       <div onclick="showSection('addDeptSection');setModuleCtx('ens')">➕ Add Department</div>
-      <div onclick="showSection('deptListSection');loadDepartments('ens')">🏥 Departments</div>
+      <div onclick="setModuleCtx('ens');showSection('deptListSection');loadDepartments('ens')">🏥 Departments</div>
       <div onclick="showSection('addLocationSection');setModuleCtx('ens')">➕ Add Location</div>
-      <div onclick="showSection('locationListSection');loadLocations('ens')">📍 Locations</div>
+      <div onclick="setModuleCtx('ens');showSection('locationListSection');loadLocations('ens')">📍 Locations</div>
       <div onclick="showSection('addContactSection');setModuleCtx('ens')">➕ Add Contact</div>
-      <div onclick="showSection('contactListSection');loadContacts('ens')">👥 Contacts</div>
+      <div onclick="setModuleCtx('ens');showSection('contactListSection');loadContacts('ens')">👥 Contacts</div>
       <div onclick="showSection('addGroupSection');setModuleCtx('ens')">➕ Add Group</div>
-      <div onclick="showSection('groupListSection');loadGroups('ens')">📂 Groups</div>
+      <div onclick="setModuleCtx('ens');showSection('groupListSection');loadGroups('ens')">📂 Groups</div>
       <div onclick="showSection('addResponderSection');setModuleCtx('ens')">➕ Add Responder</div>
-      <div onclick="showSection('responderListSection');loadResponders('ens')">🚨 Responders</div>
+      <div onclick="setModuleCtx('ens');showSection('responderListSection');loadResponders('ens')">🚨 Responders</div>
     </div>
     <!-- ERS sub-section -->
     <div class="menu-item sub" id="menu-ers" onclick="event.stopPropagation();toggleMenu('ersMenu','menu-ers')" style="padding-left:16px;font-size:13px;">
       ERS <span class="arrow">▾</span>
     </div>
     <div class="submenu" id="ersMenu" style="padding-left:24px;">
+      <div onclick="setModuleCtx('ers');showSection('ersConfigSection');loadERSList()">⚙️ ERS Configuration</div>
       <div onclick="showSection('addOrgSection');setModuleCtx('ers')">➕ Add Organization</div>
-      <div onclick="showSection('orgListSection');loadOrganizations('ers')">📋 Organizations</div>
+      <div onclick="setModuleCtx('ers');showSection('orgListSection');loadOrganizations('ers')">📋 Organizations</div>
       <div onclick="showSection('addDeptSection');setModuleCtx('ers')">➕ Add Department</div>
-      <div onclick="showSection('deptListSection');loadDepartments('ers')">🏥 Departments</div>
+      <div onclick="setModuleCtx('ers');showSection('deptListSection');loadDepartments('ers')">🏥 Departments</div>
       <div onclick="showSection('addLocationSection');setModuleCtx('ers')">➕ Add Location</div>
-      <div onclick="showSection('locationListSection');loadLocations('ers')">📍 Locations</div>
+      <div onclick="setModuleCtx('ers');showSection('locationListSection');loadLocations('ers')">📍 Locations</div>
       <div onclick="showSection('addContactSection');setModuleCtx('ers')">➕ Add Contact</div>
-      <div onclick="showSection('contactListSection');loadContacts('ers')">👥 Contacts</div>
+      <div onclick="setModuleCtx('ers');showSection('contactListSection');loadContacts('ers')">👥 Contacts</div>
       <div onclick="showSection('addGroupSection');setModuleCtx('ers')">➕ Add Group</div>
-      <div onclick="showSection('groupListSection');loadGroups('ers')">📂 Groups</div>
+      <div onclick="setModuleCtx('ers');showSection('groupListSection');loadGroups('ers')">📂 Groups</div>
       <div onclick="showSection('addResponderSection');setModuleCtx('ers')">➕ Add Responder</div>
-      <div onclick="showSection('responderListSection');loadResponders('ers')">🚨 Responders</div>
+      <div onclick="setModuleCtx('ers');showSection('responderListSection');loadResponders('ers')">🚨 Responders</div>
     </div>
+  </div>
+
+  <!-- Reports -->
+  <div class="menu-item" id="menu-reports" onclick="toggleMenu('reportsMenu', 'menu-reports')">
+    📊 Reports <span class="arrow">▾</span>
+  </div>
+  <div class="submenu" id="reportsMenu">
+    <div onclick="showSection('blastReportSection');loadBlastLogs()">📋 Blast Logs</div>
   </div>
 
   <!-- Sidebar Footer (Settings) -->
@@ -317,8 +327,9 @@
   <!-- Organization List -->
   <section id="orgListSection" class="section">
     <h2>Organization List</h2>
-    <div class="section-toolbar">
+    <div class="section-toolbar" style="gap:10px;flex-wrap:wrap;align-items:center;">
       <button type="button" class="btn btn-refresh" onclick="loadOrganizations()" style="margin-top:0;">↻ Refresh</button>
+      <input id="orgSearchInput" type="text" placeholder="Search organizations…" oninput="filterOrgTable()" style="min-width:200px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
     </div>
     <div class="table-container">
       <table id="org-table">
@@ -380,8 +391,9 @@
 
   <section id="deptListSection" class="section">
     <h2 id="deptListTitle">Departments</h2>
-    <div class="section-toolbar">
+    <div class="section-toolbar" style="gap:10px;flex-wrap:wrap;align-items:center;">
       <button type="button" class="btn btn-refresh" onclick="loadDepartments()" style="margin-top:0;">↻ Refresh</button>
+      <input id="deptSearchInput" type="text" placeholder="Search departments…" oninput="filterDeptTable()" style="min-width:200px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
     </div>
     <div class="table-container">
       <table id="dept-table">
@@ -435,8 +447,9 @@
 
   <section id="contactListSection" class="section">
     <h2 id="contactListTitle">Contacts</h2>
-    <div class="section-toolbar">
+    <div class="section-toolbar" style="gap:10px;flex-wrap:wrap;align-items:center;">
       <button type="button" class="btn btn-refresh" onclick="loadContacts()" style="margin-top:0;">↻ Refresh</button>
+      <input id="contactSearchInput" type="text" placeholder="Search contacts…" oninput="filterContactTable()" style="min-width:200px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
     </div>
     <div class="table-container">
       <table id="contact-table">
@@ -651,6 +664,200 @@
       </div>
     </div>
   </div>
+
+  <!-- Responder Contacts Modal -->
+  <div id="responder-contacts-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-secondary,#fff);border-radius:12px;padding:24px;max-width:600px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:80vh;overflow:auto;">
+      <h3 style="margin-top:0;" id="responderContactsTitle">Responder Contacts</h3>
+      <input type="hidden" id="responderContactsRespId">
+      <div style="margin-bottom:12px;">
+        <label for="addResponderContactSelect">Add Contact to Responder</label>
+        <div style="display:flex;gap:8px;">
+          <select id="addResponderContactSelect" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"></select>
+          <button type="button" onclick="addContactToResponderUI()">Add</button>
+        </div>
+      </div>
+      <table id="responder-contacts-table" style="width:100%;">
+        <thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" class="btn-cancel" onclick="closeResponderContacts()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ENS Configuration
+       ═══════════════════════════════════════════════════════════ -->
+  <section id="ensConfigSection" class="section">
+    <h2>ENS Configuration</h2>
+    <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+      <h3 style="margin-top:0;font-size:14px;opacity:.8;" id="addENSTitle">Add ENS Profile</h3>
+      <label for="ensName">Name</label>
+      <input id="ensName" type="text" placeholder="e.g. ENS Fire Alert">
+      <label for="ensPin">PIN</label>
+      <input id="ensPin" type="text" placeholder="e.g. 1234">
+      <label for="ensPhone">Phone</label>
+      <input id="ensPhone" type="text" placeholder="e.g. +1-555-0100">
+      <label for="ensRetryNumber">Retry Number</label>
+      <input id="ensRetryNumber" type="text" placeholder="e.g. +1-555-0101 (optional)">
+      <label for="ensRetry">Retry Count</label>
+      <input id="ensRetry" type="number" value="0" min="0">
+      <label for="ensOrg">Organization</label>
+      <select id="ensOrg" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"></select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input id="ensActive" type="checkbox" checked> Active
+      </label>
+      <button type="button" onclick="addENSProfile()" style="margin-top:12px;">Add ENS Profile</button>
+    </div>
+    <div class="section-toolbar">
+      <button type="button" class="btn btn-refresh" onclick="loadENSList()" style="margin-top:0;">↻ Refresh</button>
+    </div>
+    <div class="table-container">
+      <table id="ens-table">
+        <thead><tr><th>Name</th><th>PIN</th><th>Phone</th><th>Retry#</th><th>Retry</th><th>Organization</th><th>Active</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Edit ENS Modal -->
+  <div id="edit-ens-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-secondary,#fff);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <h3 style="margin-top:0;">Edit ENS Profile</h3>
+      <input type="hidden" id="editENSId">
+      <label for="editENSName">Name</label>
+      <input id="editENSName" type="text">
+      <label for="editENSPin">PIN</label>
+      <input id="editENSPin" type="text">
+      <label for="editENSPhone">Phone</label>
+      <input id="editENSPhone" type="text">
+      <label for="editENSRetryNumber">Retry Number</label>
+      <input id="editENSRetryNumber" type="text">
+      <label for="editENSRetry">Retry Count</label>
+      <input id="editENSRetry" type="number" min="0">
+      <label for="editENSOrg">Organization</label>
+      <select id="editENSOrg" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"></select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input id="editENSActive" type="checkbox"> Active
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" class="btn-cancel" onclick="closeEditENS()">Cancel</button>
+        <button type="button" onclick="saveEditENS()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ERS Configuration
+       ═══════════════════════════════════════════════════════════ -->
+  <section id="ersConfigSection" class="section">
+    <h2>ERS Configuration</h2>
+    <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+      <h3 style="margin-top:0;font-size:14px;opacity:.8;" id="addERSTitle">Add ERS Profile</h3>
+      <label for="ersName">Name</label>
+      <input id="ersName" type="text" placeholder="e.g. ERS Flood Response">
+      <label for="ersPhone">Phone</label>
+      <input id="ersPhone" type="text" placeholder="e.g. +1-555-0200">
+      <label for="ersRetryNumPrimary">Retry Number (Primary)</label>
+      <input id="ersRetryNumPrimary" type="text" placeholder="e.g. +1-555-0201">
+      <label for="ersRetryNumSecondary">Retry Number (Secondary)</label>
+      <input id="ersRetryNumSecondary" type="text" placeholder="e.g. +1-555-0202">
+      <label for="ersRetry">Retry Count</label>
+      <input id="ersRetry" type="number" value="0" min="0">
+      <label for="ersOrg">Organization</label>
+      <select id="ersOrg" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"></select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input id="ersActive" type="checkbox" checked> Active
+      </label>
+      <button type="button" onclick="addERSProfile()" style="margin-top:12px;">Add ERS Profile</button>
+    </div>
+    <div class="section-toolbar">
+      <button type="button" class="btn btn-refresh" onclick="loadERSList()" style="margin-top:0;">↻ Refresh</button>
+    </div>
+    <div class="table-container">
+      <table id="ers-table">
+        <thead><tr><th>Name</th><th>Phone</th><th>Retry Primary</th><th>Retry Secondary</th><th>Retry</th><th>Organization</th><th>Active</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Edit ERS Modal -->
+  <div id="edit-ers-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-secondary,#fff);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <h3 style="margin-top:0;">Edit ERS Profile</h3>
+      <input type="hidden" id="editERSId">
+      <label for="editERSName">Name</label>
+      <input id="editERSName" type="text">
+      <label for="editERSPhone">Phone</label>
+      <input id="editERSPhone" type="text">
+      <label for="editERSRetryNumPrimary">Retry Number (Primary)</label>
+      <input id="editERSRetryNumPrimary" type="text">
+      <label for="editERSRetryNumSecondary">Retry Number (Secondary)</label>
+      <input id="editERSRetryNumSecondary" type="text">
+      <label for="editERSRetry">Retry Count</label>
+      <input id="editERSRetry" type="number" min="0">
+      <label for="editERSOrg">Organization</label>
+      <select id="editERSOrg" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);"></select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input id="editERSActive" type="checkbox"> Active
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" class="btn-cancel" onclick="closeEditERS()">Cancel</button>
+        <button type="button" onclick="saveEditERS()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       Blast Logs / Reports
+       ═══════════════════════════════════════════════════════════ -->
+  <section id="blastReportSection" class="section">
+    <h2>Blast Logs</h2>
+    <div class="section-toolbar" style="gap:10px;flex-wrap:wrap;align-items:center;">
+      <button type="button" class="btn btn-refresh" onclick="loadBlastLogs()" style="margin-top:0;">↻ Refresh</button>
+      <select id="blastFilterModule" onchange="loadBlastLogs()" style="width:auto;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+        <option value="">All Modules</option>
+        <option value="ens">ENS</option>
+        <option value="ers">ERS</option>
+      </select>
+      <select id="blastFilterGroupType" onchange="loadBlastLogs()" style="width:auto;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+        <option value="">All Group Types</option>
+        <option value="primary">Primary</option>
+        <option value="secondary">Secondary</option>
+      </select>
+      <input id="blastFilterPhone" type="text" placeholder="Search phone…" oninput="debounceBlastSearch()" style="min-width:160px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+      <input id="blastFilterDateFrom" type="date" onchange="loadBlastLogs()" title="From date" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+      <input id="blastFilterDateTo" type="date" onchange="loadBlastLogs()" title="To date" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+      <button type="button" class="btn" onclick="clearBlastFilters()" style="margin-top:0;">Clear</button>
+      <button type="button" class="btn-export" onclick="exportBlastCSV()" style="margin-left:auto;">⬇ Export CSV</button>
+    </div>
+    <div class="stats-summary report-stats" id="blast-stats" style="margin-bottom:12px;">
+      <div class="summary-card"><div class="sc-label">Total Logs</div><div class="sc-value" id="blast-total">—</div></div>
+      <div class="summary-card"><div class="sc-label">Current Page</div><div class="sc-value" id="blast-page-info">—</div></div>
+    </div>
+    <div class="table-container">
+      <table id="blast-table">
+        <thead>
+          <tr>
+            <th>Call ID</th>
+            <th>Caller</th>
+            <th>Blasted To</th>
+            <th>Module</th>
+            <th>Group Type</th>
+            <th>Status</th>
+            <th>Attendance</th>
+            <th>Duration (s)</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="blast-pagination"></div>
+  </section>
 
   <!-- Admin Users -->
   <section id="adminSection" class="section">

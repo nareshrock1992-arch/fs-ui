@@ -975,6 +975,164 @@ async function deleteResponder(id) {
   return res.rows[0] || null;
 }
 
+// ── ENS CRUD ──────────────────────────────────────────────────
+
+async function createENS({ id, name, pin, responders, active, phone, retry_number, retry, organization_Id }) {
+  const res = await query(
+    `INSERT INTO "ENS" (id, name, pin, responders, active, phone, retry_number, retry, "organization_Id")
+      VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)
+      RETURNING *`,
+    [id, name, pin, JSON.stringify(responders || []), active !== false, phone, retry_number || null, retry || 0, organization_Id]
+  );
+  return res.rows[0];
+}
+
+async function getAllENS(filters = {}) {
+  let sql = `SELECT e.*, o.name AS organization_name FROM "ENS" e
+             LEFT JOIN "Organization" o ON e."organization_Id" = o.id`;
+  const params = [];
+  const clauses = [];
+  if (filters.organization_Id) { params.push(filters.organization_Id); clauses.push(`e."organization_Id" = $${params.length}`); }
+  if (filters.active !== undefined) { params.push(filters.active); clauses.push(`e.active = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY e.name ASC';
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function getENSById(id) {
+  const res = await query(`SELECT e.*, o.name AS organization_name FROM "ENS" e LEFT JOIN "Organization" o ON e."organization_Id" = o.id WHERE e.id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateENS(id, { name, pin, responders, active, phone, retry_number, retry, organization_Id }) {
+  const res = await query(
+    `UPDATE "ENS"
+        SET name = $2, pin = $3, responders = $4::jsonb, active = $5,
+            phone = $6, retry_number = $7, retry = $8, "organization_Id" = $9
+      WHERE id = $1 RETURNING *`,
+    [id, name, pin, JSON.stringify(responders || []), active !== false, phone, retry_number || null, retry || 0, organization_Id]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteENS(id) {
+  const res = await query(`DELETE FROM "ENS" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
+// ── ERS CRUD ──────────────────────────────────────────────────
+
+async function createERS({ id, name, responders, active, phone, retry, retry_number, organization_Id }) {
+  const res = await query(
+    `INSERT INTO "ERS" (id, name, responders, active, phone, retry, retry_number, "organization_Id")
+      VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7::jsonb, $8)
+      RETURNING *`,
+    [id, name, JSON.stringify(responders || []), active !== false, phone, retry || 0,
+     JSON.stringify(retry_number || { primary: null, secondary: null }), organization_Id]
+  );
+  return res.rows[0];
+}
+
+async function getAllERS(filters = {}) {
+  let sql = `SELECT e.*, o.name AS organization_name FROM "ERS" e
+             LEFT JOIN "Organization" o ON e."organization_Id" = o.id`;
+  const params = [];
+  const clauses = [];
+  if (filters.organization_Id) { params.push(filters.organization_Id); clauses.push(`e."organization_Id" = $${params.length}`); }
+  if (filters.active !== undefined) { params.push(filters.active); clauses.push(`e.active = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY e.name ASC';
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function getERSById(id) {
+  const res = await query(`SELECT e.*, o.name AS organization_name FROM "ERS" e LEFT JOIN "Organization" o ON e."organization_Id" = o.id WHERE e.id = $1`, [id]);
+  return res.rows[0] || null;
+}
+
+async function updateERS(id, { name, responders, active, phone, retry, retry_number, organization_Id }) {
+  const res = await query(
+    `UPDATE "ERS"
+        SET name = $2, responders = $3::jsonb, active = $4, phone = $5,
+            retry = $6, retry_number = $7::jsonb, "organization_Id" = $8
+      WHERE id = $1 RETURNING *`,
+    [id, name, JSON.stringify(responders || []), active !== false, phone, retry || 0,
+     JSON.stringify(retry_number || { primary: null, secondary: null }), organization_Id]
+  );
+  return res.rows[0] || null;
+}
+
+async function deleteERS(id) {
+  const res = await query(`DELETE FROM "ERS" WHERE id = $1 RETURNING *`, [id]);
+  return res.rows[0] || null;
+}
+
+// ── Blast Logs queries ────────────────────────────────────────
+
+async function getAllBlastLogs(filters = {}) {
+  let sql = `SELECT * FROM blast_logs`;
+  const params = [];
+  const clauses = [];
+  if (filters.module) { params.push(filters.module); clauses.push(`module = $${params.length}::"enum_blast_logs_module"`); }
+  if (filters.group_type) { params.push(filters.group_type); clauses.push(`group_type = $${params.length}::"enum_blast_logs_group_type"`); }
+  if (filters.phone) { params.push(`%${filters.phone}%`); clauses.push(`(blasted_to ILIKE $${params.length} OR caller_id ILIKE $${params.length})`); }
+  if (filters.date_from) { params.push(filters.date_from); clauses.push(`created_at >= $${params.length}::timestamptz`); }
+  if (filters.date_to) { params.push(filters.date_to); clauses.push(`created_at <= $${params.length}::timestamptz`); }
+  if (filters.blast_status) { params.push(filters.blast_status); clauses.push(`blast_status = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  sql += ' ORDER BY created_at DESC NULLS LAST, id DESC';
+  if (filters.limit) { params.push(filters.limit); sql += ` LIMIT $${params.length}`; }
+  if (filters.offset) { params.push(filters.offset); sql += ` OFFSET $${params.length}`; }
+  const res = await query(sql, params);
+  return res.rows;
+}
+
+async function countBlastLogs(filters = {}) {
+  let sql = `SELECT COUNT(*) as total FROM blast_logs`;
+  const params = [];
+  const clauses = [];
+  if (filters.module) { params.push(filters.module); clauses.push(`module = $${params.length}::"enum_blast_logs_module"`); }
+  if (filters.group_type) { params.push(filters.group_type); clauses.push(`group_type = $${params.length}::"enum_blast_logs_group_type"`); }
+  if (filters.phone) { params.push(`%${filters.phone}%`); clauses.push(`(blasted_to ILIKE $${params.length} OR caller_id ILIKE $${params.length})`); }
+  if (filters.date_from) { params.push(filters.date_from); clauses.push(`created_at >= $${params.length}::timestamptz`); }
+  if (filters.date_to) { params.push(filters.date_to); clauses.push(`created_at <= $${params.length}::timestamptz`); }
+  if (filters.blast_status) { params.push(filters.blast_status); clauses.push(`blast_status = $${params.length}`); }
+  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  const res = await query(sql, params);
+  return parseInt(res.rows[0].total, 10);
+}
+
+// ── ResponderContacts CRUD ────────────────────────────────────
+
+async function addContactToResponder(responderId, contactId) {
+  const res = await query(
+    `INSERT INTO "ResponderContacts" ("ResponderId", "ContactId")
+      VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *`,
+    [responderId, contactId]
+  );
+  return res.rows[0] || null;
+}
+
+async function removeContactFromResponder(responderId, contactId) {
+  const res = await query(
+    `DELETE FROM "ResponderContacts" WHERE "ResponderId" = $1 AND "ContactId" = $2 RETURNING *`,
+    [responderId, contactId]
+  );
+  return res.rows[0] || null;
+}
+
+async function getResponderContacts(responderId) {
+  const res = await query(
+    `SELECT c.* FROM "Contacts" c
+     JOIN "ResponderContacts" rc ON rc."ContactId" = c.id
+     WHERE rc."ResponderId" = $1 ORDER BY c.name ASC`,
+    [responderId]
+  );
+  return res.rows;
+}
+
 // ── Exports ───────────────────────────────────────────────────
 module.exports = {
   pool,
@@ -1006,7 +1164,15 @@ module.exports = {
   createGroup, getAllGroups, getGroupById, updateGroup, deleteGroup,
   addContactToGroup, removeContactFromGroup, getGroupContacts,
   // responder CRUD
-  createResponder, getAllResponders, getResponderById, updateResponder, deleteResponder
+  createResponder, getAllResponders, getResponderById, updateResponder, deleteResponder,
+  // responder contacts
+  addContactToResponder, removeContactFromResponder, getResponderContacts,
+  // ENS CRUD
+  createENS, getAllENS, getENSById, updateENS, deleteENS,
+  // ERS CRUD
+  createERS, getAllERS, getERSById, updateERS, deleteERS,
+  // blast logs
+  getAllBlastLogs, countBlastLogs
 };
 
 // ── Run schema bootstrap when called directly ─────────────────

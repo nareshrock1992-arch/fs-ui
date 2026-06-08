@@ -109,7 +109,6 @@ function showSection(id) {
   if (id === 'monitorConferenceSection')  monitorConferences();
   if (id === 'reportSection')             loadHistory();
   if (id === 'adminSection')              loadAdminUsers();
-  if (id === 'orgListSection')            loadOrganizations();
 }
 
 // ── Users ─────────────────────────────────────────────────────
@@ -1094,7 +1093,7 @@ function setModuleCtx(mod) {
   currentModule = mod;
   const label = mod.toUpperCase();
   // update hidden module fields and titles for all add forms
-  ['orgModules','deptModules','contactModules','locationModules','groupModules','responderModules'].forEach(id => {
+  ['orgModules','deptModules','contactModules','locationModules','groupModules','responderModules','ensModules','ersModules'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = mod;
   });
   const titleMap = {
@@ -1121,7 +1120,8 @@ async function loadOrgDropdowns(mod) {
     const html = '<option value="">— Select Organization —</option>' +
       orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
     ['deptOrg','contactOrg','locationOrg','groupOrg','responderOrg',
-     'editDeptOrg','editContactOrg','editLocationOrg','editGroupOrg','editResponderOrg'].forEach(id => {
+     'editDeptOrg','editContactOrg','editLocationOrg','editGroupOrg','editResponderOrg',
+     'ensOrg','editENSOrg','ersOrg','editERSOrg'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = html;
     });
@@ -1837,6 +1837,7 @@ async function loadResponders(mod) {
       tr.innerHTML = `<td>${esc(r.name)}</td><td>${esc(r.description||'—')}</td><td>${esc(r.organization_name||'—')}</td><td style="white-space:nowrap"></td>`;
       const acts = tr.lastElementChild;
       const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditResponder(r); acts.appendChild(eb);
+      const cb = document.createElement('button'); cb.textContent='Contacts'; cb.className='btn'; cb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; cb.onclick=()=>openResponderContacts(r); acts.appendChild(cb);
       const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteResponderItem(r.id,r.name); acts.appendChild(db2);
       tbody.appendChild(tr);
     });
@@ -1882,6 +1883,419 @@ async function deleteResponderItem(id, name) {
     if (data.success) { toast('success','Deleted',`${name} removed.`); loadResponders(); }
     else toast('error','Failed',data.error);
   } catch (err) { toast('error','Network error',err.message); }
+}
+
+// ── ENS Configuration ─────────────────────────────────────────
+
+async function addENSProfile() {
+  const name         = document.getElementById('ensName').value.trim();
+  const pin          = document.getElementById('ensPin').value.trim();
+  const phone        = document.getElementById('ensPhone').value.trim();
+  const retry_number = document.getElementById('ensRetryNumber').value.trim();
+  const retry        = parseInt(document.getElementById('ensRetry').value) || 0;
+  const organization_Id = document.getElementById('ensOrg').value;
+  const active       = document.getElementById('ensActive').checked;
+
+  if (!name || !pin || !phone || !organization_Id) {
+    toast('warn', 'Missing fields', 'Name, PIN, phone, and organization are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/ens/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, pin, responders: [], active, phone, retry_number, retry, organization_Id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'ENS profile created', `${name} added.`);
+      document.getElementById('ensName').value = '';
+      document.getElementById('ensPin').value = '';
+      document.getElementById('ensPhone').value = '';
+      document.getElementById('ensRetryNumber').value = '';
+      document.getElementById('ensRetry').value = '0';
+      document.getElementById('ensActive').checked = true;
+      loadENSList();
+    } else {
+      toast('error', 'Failed', data.error);
+    }
+  } catch (err) { toast('error', 'Network error', err.message); }
+}
+
+async function loadENSList() {
+  loadOrgDropdowns('ens');
+  try {
+    const res = await fetch('/api/ens/list', { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#ens-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><span class="icon">⚙️</span>No ENS profiles yet</div></td></tr>';
+      return;
+    }
+    items.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(e.name)}</td><td>${esc(e.pin)}</td><td>${esc(e.phone)}</td><td>${esc(e.retry_number||'—')}</td><td>${e.retry}</td><td>${esc(e.organization_name||'—')}</td><td>${e.active?'<span style="color:#16a34a;font-weight:600;">Active</span>':'<span style="color:#dc2626;font-weight:600;">Inactive</span>'}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditENS(e); acts.appendChild(eb);
+      const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteENSItem(e.id,e.name); acts.appendChild(db2);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error', 'Failed to load ENS profiles', err.message); }
+}
+
+function openEditENS(e) {
+  document.getElementById('editENSId').value = e.id;
+  document.getElementById('editENSName').value = e.name;
+  document.getElementById('editENSPin').value = e.pin;
+  document.getElementById('editENSPhone').value = e.phone;
+  document.getElementById('editENSRetryNumber').value = e.retry_number || '';
+  document.getElementById('editENSRetry').value = e.retry || 0;
+  document.getElementById('editENSActive').checked = e.active;
+  loadOrgDropdowns('ens').then(() => {
+    document.getElementById('editENSOrg').value = e.organization_Id || '';
+  });
+  document.getElementById('edit-ens-overlay').style.display = 'flex';
+}
+function closeEditENS() { document.getElementById('edit-ens-overlay').style.display = 'none'; }
+
+async function saveEditENS() {
+  const id             = document.getElementById('editENSId').value;
+  const name           = document.getElementById('editENSName').value.trim();
+  const pin            = document.getElementById('editENSPin').value.trim();
+  const phone          = document.getElementById('editENSPhone').value.trim();
+  const retry_number   = document.getElementById('editENSRetryNumber').value.trim();
+  const retry          = parseInt(document.getElementById('editENSRetry').value) || 0;
+  const organization_Id = document.getElementById('editENSOrg').value;
+  const active         = document.getElementById('editENSActive').checked;
+  if (!name || !pin || !phone || !organization_Id) { toast('warn','Missing fields','Name, PIN, phone, and organization are required.'); return; }
+  try {
+    const res = await fetch(`/api/ens/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, pin, responders: [], active, phone, retry_number, retry, organization_Id })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Updated',`${name} updated.`); closeEditENS(); loadENSList(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function deleteENSItem(id, name) {
+  const ok = await showConfirm('Delete ENS Profile', `Delete "${name}"?`, 'Delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/ens/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Deleted',`${name} removed.`); loadENSList(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+// ── ERS Configuration ─────────────────────────────────────────
+
+async function addERSProfile() {
+  const name         = document.getElementById('ersName').value.trim();
+  const phone        = document.getElementById('ersPhone').value.trim();
+  const retryPrimary = document.getElementById('ersRetryNumPrimary').value.trim();
+  const retrySecondary = document.getElementById('ersRetryNumSecondary').value.trim();
+  const retry        = parseInt(document.getElementById('ersRetry').value) || 0;
+  const organization_Id = document.getElementById('ersOrg').value;
+  const active       = document.getElementById('ersActive').checked;
+
+  if (!name || !phone || !organization_Id) {
+    toast('warn', 'Missing fields', 'Name, phone, and organization are required.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/ers/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, responders: [], active, phone, retry,
+        retry_number: { primary: retryPrimary || null, secondary: retrySecondary || null },
+        organization_Id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('success', 'ERS profile created', `${name} added.`);
+      document.getElementById('ersName').value = '';
+      document.getElementById('ersPhone').value = '';
+      document.getElementById('ersRetryNumPrimary').value = '';
+      document.getElementById('ersRetryNumSecondary').value = '';
+      document.getElementById('ersRetry').value = '0';
+      document.getElementById('ersActive').checked = true;
+      loadERSList();
+    } else {
+      toast('error', 'Failed', data.error);
+    }
+  } catch (err) { toast('error', 'Network error', err.message); }
+}
+
+async function loadERSList() {
+  loadOrgDropdowns('ers');
+  try {
+    const res = await fetch('/api/ers/list', { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#ers-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><span class="icon">⚙️</span>No ERS profiles yet</div></td></tr>';
+      return;
+    }
+    items.forEach(e => {
+      const rn = e.retry_number || {};
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(e.name)}</td><td>${esc(e.phone)}</td><td>${esc(rn.primary||'—')}</td><td>${esc(rn.secondary||'—')}</td><td>${e.retry}</td><td>${esc(e.organization_name||'—')}</td><td>${e.active?'<span style="color:#16a34a;font-weight:600;">Active</span>':'<span style="color:#dc2626;font-weight:600;">Inactive</span>'}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const eb = document.createElement('button'); eb.textContent='Edit'; eb.className='btn'; eb.style.cssText='margin-right:6px;padding:4px 10px;font-size:12px;'; eb.onclick=()=>openEditERS(e); acts.appendChild(eb);
+      const db2 = document.createElement('button'); db2.textContent='Delete'; db2.className='btn'; db2.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;'; db2.onclick=()=>deleteERSItem(e.id,e.name); acts.appendChild(db2);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error', 'Failed to load ERS profiles', err.message); }
+}
+
+function openEditERS(e) {
+  document.getElementById('editERSId').value = e.id;
+  document.getElementById('editERSName').value = e.name;
+  document.getElementById('editERSPhone').value = e.phone;
+  const rn = e.retry_number || {};
+  document.getElementById('editERSRetryNumPrimary').value = rn.primary || '';
+  document.getElementById('editERSRetryNumSecondary').value = rn.secondary || '';
+  document.getElementById('editERSRetry').value = e.retry || 0;
+  document.getElementById('editERSActive').checked = e.active;
+  loadOrgDropdowns('ers').then(() => {
+    document.getElementById('editERSOrg').value = e.organization_Id || '';
+  });
+  document.getElementById('edit-ers-overlay').style.display = 'flex';
+}
+function closeEditERS() { document.getElementById('edit-ers-overlay').style.display = 'none'; }
+
+async function saveEditERS() {
+  const id             = document.getElementById('editERSId').value;
+  const name           = document.getElementById('editERSName').value.trim();
+  const phone          = document.getElementById('editERSPhone').value.trim();
+  const retryPrimary   = document.getElementById('editERSRetryNumPrimary').value.trim();
+  const retrySecondary = document.getElementById('editERSRetryNumSecondary').value.trim();
+  const retry          = parseInt(document.getElementById('editERSRetry').value) || 0;
+  const organization_Id = document.getElementById('editERSOrg').value;
+  const active         = document.getElementById('editERSActive').checked;
+  if (!name || !phone || !organization_Id) { toast('warn','Missing fields','Name, phone, and organization are required.'); return; }
+  try {
+    const res = await fetch(`/api/ers/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name, responders: [], active, phone, retry,
+        retry_number: { primary: retryPrimary || null, secondary: retrySecondary || null },
+        organization_Id })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Updated',`${name} updated.`); closeEditERS(); loadERSList(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function deleteERSItem(id, name) {
+  const ok = await showConfirm('Delete ERS Profile', `Delete "${name}"?`, 'Delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/ers/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Deleted',`${name} removed.`); loadERSList(); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+// ── Blast Logs / Reports ──────────────────────────────────────
+
+let _blastSearchTimer = null;
+let _blastCurrentPage = 1;
+let _blastAllData = [];
+
+function debounceBlastSearch() {
+  clearTimeout(_blastSearchTimer);
+  _blastSearchTimer = setTimeout(() => loadBlastLogs(), 400);
+}
+
+function clearBlastFilters() {
+  document.getElementById('blastFilterModule').value = '';
+  document.getElementById('blastFilterGroupType').value = '';
+  document.getElementById('blastFilterPhone').value = '';
+  document.getElementById('blastFilterDateFrom').value = '';
+  document.getElementById('blastFilterDateTo').value = '';
+  _blastCurrentPage = 1;
+  loadBlastLogs();
+}
+
+async function loadBlastLogs(page) {
+  _blastCurrentPage = page || _blastCurrentPage || 1;
+  const module     = document.getElementById('blastFilterModule').value;
+  const group_type = document.getElementById('blastFilterGroupType').value;
+  const phone      = document.getElementById('blastFilterPhone').value.trim();
+  const date_from  = document.getElementById('blastFilterDateFrom').value;
+  const date_to    = document.getElementById('blastFilterDateTo').value;
+
+  const params = new URLSearchParams({ page: _blastCurrentPage, limit: 25 });
+  if (module) params.set('module', module);
+  if (group_type) params.set('group_type', group_type);
+  if (phone) params.set('phone', phone);
+  if (date_from) params.set('date_from', date_from);
+  if (date_to) params.set('date_to', date_to + 'T23:59:59Z');
+
+  try {
+    const res = await fetch(`/api/blast-logs/list?${params}`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#blast-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    _blastAllData = items;
+    const pag = data.pagination || {};
+
+    document.getElementById('blast-total').textContent = pag.total || 0;
+    document.getElementById('blast-page-info').textContent = `${pag.page || 1} / ${pag.totalPages || 1}`;
+
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><span class="icon">📊</span>No blast logs found</div></td></tr>';
+      renderBlastPagination(pag);
+      return;
+    }
+    items.forEach(log => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${esc(log.callid||'—')}</td>
+        <td>${esc(log.caller_id||'—')}</td>
+        <td>${esc(log.blasted_to||'—')}</td>
+        <td>${log.module ? log.module.toUpperCase() : '—'}</td>
+        <td>${esc(log.group_type||'—')}</td>
+        <td>${esc(log.blast_status||'—')}</td>
+        <td>${esc(log.attendance_status||'—')}</td>
+        <td>${log.record_duration != null ? log.record_duration : '—'}</td>
+        <td>${log.created_at ? new Date(log.created_at).toLocaleString() : '—'}</td>`;
+      tbody.appendChild(tr);
+    });
+    renderBlastPagination(pag);
+  } catch (err) { toast('error', 'Failed to load blast logs', err.message); }
+}
+
+function renderBlastPagination(pag) {
+  const container = document.getElementById('blast-pagination');
+  container.innerHTML = '';
+  if (!pag || !pag.totalPages || pag.totalPages <= 1) return;
+  for (let i = 1; i <= pag.totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.className = 'btn';
+    btn.style.cssText = `margin:2px;padding:4px 10px;font-size:12px;${i === pag.page ? 'background:var(--accent);color:#fff;' : ''}`;
+    btn.onclick = () => loadBlastLogs(i);
+    container.appendChild(btn);
+  }
+}
+
+function exportBlastCSV() {
+  const headers = ['Call ID','Caller','Blasted To','Module','Group Type','Status','Attendance','Duration (s)','Created'];
+  const rows = _blastAllData.map(log => [
+    log.callid||'', log.caller_id||'', log.blasted_to||'',
+    log.module||'', log.group_type||'', log.blast_status||'',
+    log.attendance_status||'', log.record_duration||'',
+    log.created_at ? new Date(log.created_at).toISOString() : ''
+  ]);
+  let csv = headers.join(',') + '\n';
+  rows.forEach(r => { csv += r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',') + '\n'; });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `blast-logs-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('success', 'CSV exported', 'Download started.');
+}
+
+// ── Responder Contacts Management ─────────────────────────────
+
+async function openResponderContacts(r) {
+  document.getElementById('responderContactsRespId').value = r.id;
+  document.getElementById('responderContactsTitle').textContent = `Contacts in "${r.name}"`;
+  document.getElementById('responder-contacts-overlay').style.display = 'flex';
+  try {
+    const res = await fetch(`/api/contacts/list?modules=${r.modules||currentModule}`, { credentials: 'include' });
+    const data = await res.json();
+    const sel = document.getElementById('addResponderContactSelect');
+    sel.innerHTML = '<option value="">— Select Contact —</option>';
+    (data.data || []).forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.name} (${c.phone})</option>`;
+    });
+  } catch (e) { /* ignore */ }
+  loadResponderContactsList(r.id);
+}
+
+async function loadResponderContactsList(responderId) {
+  const rid = responderId || document.getElementById('responderContactsRespId').value;
+  try {
+    const res = await fetch(`/api/responders/${rid}/contacts`, { credentials: 'include' });
+    const data = await res.json();
+    const tbody = document.querySelector('#responder-contacts-table tbody');
+    tbody.innerHTML = '';
+    const items = data.data || [];
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">No contacts in this responder</div></td></tr>';
+      return;
+    }
+    items.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(c.name)}</td><td>${esc(c.phone)}</td><td>${esc(c.role)}</td><td style="white-space:nowrap"></td>`;
+      const acts = tr.lastElementChild;
+      const rb = document.createElement('button'); rb.textContent='Remove'; rb.className='btn'; rb.style.cssText='padding:4px 10px;font-size:12px;background:var(--accent-danger);color:#fff;';
+      rb.onclick = () => removeContactFromResponderUI(rid, c.id, c.name);
+      acts.appendChild(rb);
+      tbody.appendChild(tr);
+    });
+  } catch (err) { toast('error','Failed to load responder contacts',err.message); }
+}
+
+async function addContactToResponderUI() {
+  const responderId = document.getElementById('responderContactsRespId').value;
+  const contactId = document.getElementById('addResponderContactSelect').value;
+  if (!contactId) { toast('warn','Select contact','Please select a contact to add.'); return; }
+  try {
+    const res = await fetch(`/api/responders/${responderId}/contacts`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ contactId })
+    });
+    const data = await res.json();
+    if (data.success) { toast('success','Added','Contact added to responder.'); loadResponderContactsList(responderId); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+async function removeContactFromResponderUI(responderId, contactId, name) {
+  const ok = await showConfirm('Remove Contact', `Remove "${name}" from this responder?`, 'Remove');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/responders/${responderId}/contacts/${contactId}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) { toast('success','Removed',`${name} removed.`); loadResponderContactsList(responderId); }
+    else toast('error','Failed',data.error);
+  } catch (err) { toast('error','Network error',err.message); }
+}
+
+function closeResponderContacts() { document.getElementById('responder-contacts-overlay').style.display = 'none'; }
+
+// ── Client-side search/filter for lists ───────────────────────
+
+function filterOrgTable() {
+  const q = (document.getElementById('orgSearchInput').value || '').toLowerCase();
+  document.querySelectorAll('#org-table tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+function filterDeptTable() {
+  const q = (document.getElementById('deptSearchInput').value || '').toLowerCase();
+  document.querySelectorAll('#dept-table tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+function filterContactTable() {
+  const q = (document.getElementById('contactSearchInput').value || '').toLowerCase();
+  document.querySelectorAll('#contact-table tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
 }
 
 // ── Init ──────────────────────────────────────────────────────

@@ -73,4 +73,38 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Responder contacts management
+router.get('/:id/contacts', async (req, res) => {
+  try {
+    const contacts = await db.getResponderContacts(req.params.id);
+    res.json({ success: true, data: contacts });
+  } catch (err) {
+    console.error('[responders] contacts list error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/:id/contacts', async (req, res) => {
+  try {
+    const { contactId } = req.body;
+    if (!contactId) return res.status(400).json({ success: false, error: 'contactId is required' });
+    const result = await db.addContactToResponder(req.params.id, contactId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[responders] add contact error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/:id/contacts/:contactId', async (req, res) => {
+  try {
+    const result = await db.removeContactFromResponder(req.params.id, req.params.contactId);
+    if (!result) return res.status(404).json({ success: false, error: 'Not found' });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[responders] remove contact error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

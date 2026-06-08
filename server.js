@@ -130,6 +130,13 @@ app.use('/api/locations',     requireLogin, require('./routes/locations'));
 app.use('/api/groups',        requireLogin, require('./routes/groups'));
 app.use('/api/responders',    requireLogin, require('./routes/responders'));
 
+// ENS / ERS Configuration
+app.use('/api/ens',           requireLogin, require('./routes/ens'));
+app.use('/api/ers',           requireLogin, require('./routes/ers'));
+
+// Blast Logs / Reports
+app.use('/api/blast-logs',    requireLogin, require('./routes/blastLogs'));
+
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
