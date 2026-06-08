@@ -19,115 +19,59 @@ fsConn.on('esl::event::conference::maintenance::*', (event) => {
   global.talkingMap[memberId] = (talking === 'true');
 });
 
-// List all active conferences
-function listConferences() {
+// ── Shared bgapi helpers ──────────────────────────────────────
+
+/**
+ * Send a bgapi command and resolve with the raw body string.
+ * Rejects when no body is returned.
+ */
+function bgapiRaw(cmd) {
   return new Promise((resolve, reject) => {
-    fsConn.bgapi('conference list', (res) => {
-      if (res && res.getBody()) {
-        resolve(res.getBody());
-      } else {
-        reject(new Error('No conferences found'));
-      }
+    fsConn.bgapi(cmd, (res) => {
+      const body = res && res.getBody ? res.getBody() : null;
+      if (body) resolve(body);
+      else reject(new Error(`bgapi '${cmd}' returned no body`));
     });
   });
 }
 
-// Create a new conference
-function createConference(name, extension) {
+/**
+ * Send a bgapi command and resolve only when FreeSWITCH replies '+OK'.
+ * Rejects with the body text otherwise.
+ */
+function bgapiOk(cmd) {
   return new Promise((resolve, reject) => {
-    fsConn.bgapi(`conference ${name} dial ${extension}`, (res) => {
-      if (res && res.getBody()) {
-        resolve(res.getBody());
-      } else {
-        reject(new Error('Failed to create conference'));
-      }
+    fsConn.bgapi(cmd, (res) => {
+      const body = (res && res.getBody ? res.getBody() : '') || '';
+      if (body.startsWith('+OK')) resolve(body);
+      else reject(new Error(body || `bgapi '${cmd}' failed`));
     });
   });
 }
 
-// Kick a participant
-function kickParticipant(conferenceName, memberId) {
-  return new Promise((resolve, reject) => {
-    fsConn.bgapi(`conference ${conferenceName} kick ${memberId}`, (res) => {
-      const body = res.getBody();
-      if (body.startsWith('+OK')) {
-        resolve(body);
-      } else {
-        reject(new Error(body));
-      }
+/**
+ * Send a bgapi command and return a JSON-ready response object
+ * suitable for Express route handlers in conferenceAdvanced.js.
+ */
+function bgapiResponse(cmd) {
+  return new Promise((resolve) => {
+    fsConn.bgapi(cmd, (reply) => {
+      const body = reply.getBody();
+      resolve({ success: body.startsWith('+OK'), response: body });
     });
   });
 }
 
-// Mute a participant
-function muteParticipant(conferenceName, memberId) {
-  return new Promise((resolve, reject) => {
-    fsConn.bgapi(`conference ${conferenceName} mute ${memberId}`, (res) => {
-      const body = res.getBody();
-      if (body.startsWith('+OK')) {
-        resolve(body);
-      } else {
-        reject(new Error(body));
-      }
-    });
-  });
-}
+// ── Conference commands (built on shared helpers) ─────────────
 
-// Unmute a participant
-function unmuteParticipant(conferenceName, memberId) {
-  return new Promise((resolve, reject) => {
-    fsConn.bgapi(`conference ${conferenceName} unmute ${memberId}`, (res) => {
-      const body = res.getBody();
-      if (body && body.startsWith('+OK')) {
-        resolve(body);
-      } else {
-        reject(new Error(body || 'Unmute failed'));
-      }
-    });
-  });
-}
-
-// Mute all participants
-function muteAllParticipants(conferenceName) {
-  return new Promise((resolve, reject) => {
-    fsConn.bgapi(`conference ${conferenceName} mute all`, (res) => {
-      const body = res.getBody();
-      if (body.startsWith('+OK')) {
-        resolve(body);
-      } else {
-        reject(new Error(body));
-      }
-    });
-  });
-}
-
-// Unmute all participants
-function unmuteAllParticipants(conferenceName) {
-  return new Promise((resolve, reject) => {
-    fsConn.bgapi(`conference ${conferenceName} unmute all`, (res) => {
-      const body = res.getBody();
-      if (body.startsWith('+OK')) {
-        resolve(body);
-      } else {
-        reject(new Error(body));
-      }
-    });
-  });
-}
-
-// Terminate conference
-function terminateConference(conferenceName) {
-  return new Promise((resolve, reject) => {
-    fsConn.bgapi(`conference ${conferenceName} hup all`, (res) => {
-      const body = res.getBody();
-      if (body.startsWith('+OK')) {
-        resolve(body);
-      } else {
-        reject(new Error(body));
-      }
-    });
-  });
-}
+function listConferences()                       { return bgapiRaw('conference list'); }
+function createConference(name, extension)       { return bgapiRaw(`conference ${name} dial ${extension}`); }
+function kickParticipant(name, id)               { return bgapiOk(`conference ${name} kick ${id}`); }
+function muteParticipant(name, id)               { return bgapiOk(`conference ${name} mute ${id}`); }
+function unmuteParticipant(name, id)             { return bgapiOk(`conference ${name} unmute ${id}`); }
+function muteAllParticipants(name)               { return bgapiOk(`conference ${name} mute all`); }
+function unmuteAllParticipants(name)             { return bgapiOk(`conference ${name} unmute all`); }
+function terminateConference(name)               { return bgapiOk(`conference ${name} hup all`); }
 
 // Parse conference list
 /*
@@ -230,32 +174,26 @@ function parseConferenceList(rawOutput) {
 }
 
 // Monitor conferences
-function getConferenceStats() {
-  return new Promise((resolve, reject) => {
-    fsConn.bgapi('conference list', (res) => {
-      const body = res.getBody();
-      if (!body) return reject(new Error('No conferences found'));
+async function getConferenceStats() {
+  const body = await bgapiRaw('conference list');
+  const lines = body.split('\n').filter(l => l.trim());
+  const stats = [];
 
-      const lines = body.split('\n').filter(l => l.trim());
-      const stats = [];
-
-      lines.forEach(line => {
-        const match = line.match(/Conference\s+(\S+).*?\((\d+)\s+members?\)/i);
-        if (match) {
-          stats.push({
-            name: match[1],
-            members: parseInt(match[2], 10)
-          });
-        }
-      });
-
-      resolve(stats);
-    });
+  lines.forEach(line => {
+    const match = line.match(/Conference\s+(\S+).*?\((\d+)\s+members?\)/i);
+    if (match) {
+      stats.push({ name: match[1], members: parseInt(match[2], 10) });
+    }
   });
+
+  return stats;
 }
 
 module.exports = {
   fsConn,
+  bgapiRaw,
+  bgapiOk,
+  bgapiResponse,
   listConferences,
   createConference,
   kickParticipant,

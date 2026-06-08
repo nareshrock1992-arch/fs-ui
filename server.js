@@ -17,26 +17,17 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-secret-in-prod
 // ── Bootstrap DB schema before accepting requests ─────────────
 const db = require('./db');
 const bcrypt = require('bcrypt');
-const fs = require('fs');
 const path = require('path');
-
-const USERS_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(USERS_DIR, 'users.json');
-
-function ensureUsersFileSync() {
-  if (!fs.existsSync(USERS_DIR)) fs.mkdirSync(USERS_DIR, { recursive: true });
-  if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2));
-}
+const { loadUsersSync, writeUsersSync } = require('./utils/users');
 
 async function maybeCreateInitialAdmin() {
-  ensureUsersFileSync();
-  const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8') || '[]');
+  const users = loadUsersSync();
   const adminUser = process.env.ADMIN_USER;
   const adminPass = process.env.ADMIN_PASSWORD;
   if (users.length === 0 && adminUser && adminPass) {
     const hash = await bcrypt.hash(adminPass, 10);
     users.push({ username: adminUser, password: hash, isAdmin: true });
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+    writeUsersSync(users);
     console.log('[server] Created initial admin user from ADMIN_USER/ADMIN_PASSWORD env vars.');
   }
 }
