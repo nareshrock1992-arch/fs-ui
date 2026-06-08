@@ -122,10 +122,14 @@ success:true
 
 });
 
-// Get list of admin users
-router.get('/users', async (req, res) => {
+// Get list of admin users (requires active session)
+router.get('/users', (req, res, next) => {
+	if (!req.session || !req.session.user) {
+		return res.status(401).json({ success: false, error: 'Unauthorized' });
+	}
+	next();
+}, async (req, res) => {
 	const users = loadUsersSync();
-	// Return only username and isAdmin (don't expose password hashes)
 	const safeUsers = users.map(u => ({ username: u.username, isAdmin: u.isAdmin }));
 	res.json(safeUsers);
 });

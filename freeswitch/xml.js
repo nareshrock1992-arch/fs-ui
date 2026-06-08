@@ -3,9 +3,24 @@ const path = require('path');
 
 const FS_DIR = "/usr/local/freeswitch/conf/directory/default";
 
+// Only alphanumeric, underscore, hyphen, dot — no path separators
+const SAFE_NAME = /^[a-zA-Z0-9_.\-]{1,64}$/;
+
+function safePath(username) {
+    if (!SAFE_NAME.test(username)) {
+        throw new Error('Invalid username: must be 1-64 alphanumeric/underscore/hyphen/dot characters');
+    }
+    const filePath = path.join(FS_DIR, `${username}.xml`);
+    // Belt-and-suspenders: ensure the resolved path stays within FS_DIR
+    if (!path.resolve(filePath).startsWith(path.resolve(FS_DIR) + path.sep)) {
+        throw new Error('Path traversal detected');
+    }
+    return filePath;
+}
+
 module.exports = {
     addUser(username, password) {
-        const filePath = path.join(FS_DIR, `${username}.xml`);
+        const filePath = safePath(username);
         const xml = `
 <include>
   <user id="${username}">
@@ -20,7 +35,7 @@ module.exports = {
     },
 
     deleteUser(username) {
-        const filePath = path.join(FS_DIR, `${username}.xml`);
+        const filePath = safePath(username);
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
             return true;
