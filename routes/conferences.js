@@ -35,13 +35,28 @@ const logger = winston.createLogger({
   ]
 });
 
+// ── Shared route handler factory ──────────────────────────────
+// Wraps the repeated try/catch → logger.info → logger.error → res.json
+// pattern used by every conference action route.
+function conferenceAction(action, handler) {
+  return async (req, res) => {
+    try {
+      const { result, payload } = await handler(req);
+      logger.info({ action, ...req.body, result });
+      res.json({ success: true, result, ...payload });
+    } catch (err) {
+      logger.error({ action, ...req.body, error: err.message });
+      res.status(500).json({ error: err.message });
+    }
+  };
+}
+
 // ── GET /list ─────────────────────────────────────────────────
 router.get('/list', async (req, res) => {
   try {
     const raw         = await listConferences();
     const conferences = parseConferenceList(raw);
 
-    // Auto-register active participants into DB (idempotent)
     await Promise.all(
       conferences
         .filter(p => p.conferenceName && p.memberId)
@@ -67,118 +82,62 @@ router.get('/active', async (req, res) => {
 });
 
 // ── POST /create ──────────────────────────────────────────────
-router.post('/create', async (req, res) => {
+router.post('/create', conferenceAction('create', async (req) => {
   const { name, extension } = req.body;
-  try {
-    const result = await createConference(name, extension);
-    logger.info({ action: 'create', name, extension, result });
-
-    await db.ensureConference(name);
-    await db.addConferenceEvent(name, 'create', `Created by dialling ${extension}`, 'operator');
-
-    res.json({ success: true, result });
-  } catch (err) {
-    logger.error({ action: 'create', name, extension, error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  const result = await createConference(name, extension);
+  await db.ensureConference(name);
+  await db.addConferenceEvent(name, 'create', `Created by dialling ${extension}`, 'operator');
+  return { result };
+}));
 
 // ── POST /kick ────────────────────────────────────────────────
-router.post('/kick', async (req, res) => {
+router.post('/kick', conferenceAction('kick', async (req) => {
   const { conferenceName, memberId } = req.body;
-  try {
-    const result = await kickParticipant(conferenceName, memberId);
-    logger.info({ action: 'kick', conferenceName, memberId, result });
-
-    await db.recordLeave(conferenceName, memberId, true);
-
-    res.json({ success: true, result });
-  } catch (err) {
-    logger.error({ action: 'kick', conferenceName, memberId, error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  const result = await kickParticipant(conferenceName, memberId);
+  await db.recordLeave(conferenceName, memberId, true);
+  return { result };
+}));
 
 // ── POST /mute ────────────────────────────────────────────────
-router.post('/mute', async (req, res) => {
+router.post('/mute', conferenceAction('mute', async (req) => {
   const { conferenceName, memberId } = req.body;
-  try {
-    const result = await muteParticipant(conferenceName, memberId);
-    logger.info({ action: 'mute', conferenceName, memberId, result });
-
-    await db.recordMute(conferenceName, memberId, true);
-
-    res.json({ success: true, result });
-  } catch (err) {
-    logger.error({ action: 'mute', conferenceName, memberId, error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  const result = await muteParticipant(conferenceName, memberId);
+  await db.recordMute(conferenceName, memberId, true);
+  return { result };
+}));
 
 // ── POST /unmute ──────────────────────────────────────────────
-router.post('/unmute', async (req, res) => {
+router.post('/unmute', conferenceAction('unmute', async (req) => {
   const { conferenceName, memberId } = req.body;
-  try {
-    const result = await unmuteParticipant(conferenceName, memberId);
-    logger.info({ action: 'unmute', conferenceName, memberId, result });
-
-    await db.recordMute(conferenceName, memberId, false);
-
-    res.json({ success: true, result });
-  } catch (err) {
-    logger.error({ action: 'unmute', conferenceName, memberId, error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  const result = await unmuteParticipant(conferenceName, memberId);
+  await db.recordMute(conferenceName, memberId, false);
+  return { result };
+}));
 
 // ── POST /muteall ─────────────────────────────────────────────
-router.post('/muteall', async (req, res) => {
+router.post('/muteall', conferenceAction('muteall', async (req) => {
   const { conferenceName } = req.body;
-  try {
-    const result = await muteAllParticipants(conferenceName);
-    logger.info({ action: 'muteall', conferenceName, result });
-
-    await db.addConferenceEvent(conferenceName, 'mute', 'All participants muted', 'operator');
-
-    res.json({ success: true, result });
-  } catch (err) {
-    logger.error({ action: 'muteall', conferenceName, error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  const result = await muteAllParticipants(conferenceName);
+  await db.addConferenceEvent(conferenceName, 'mute', 'All participants muted', 'operator');
+  return { result };
+}));
 
 // ── POST /unmuteall ───────────────────────────────────────────
-router.post('/unmuteall', async (req, res) => {
+router.post('/unmuteall', conferenceAction('unmuteall', async (req) => {
   const { conferenceName } = req.body;
-  try {
-    const result = await unmuteAllParticipants(conferenceName);
-    logger.info({ action: 'unmuteall', conferenceName, result });
-
-    await db.addConferenceEvent(conferenceName, 'unmute', 'All participants unmuted', 'operator');
-
-    res.json({ success: true, result });
-  } catch (err) {
-    logger.error({ action: 'unmuteall', conferenceName, error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  const result = await unmuteAllParticipants(conferenceName);
+  await db.addConferenceEvent(conferenceName, 'unmute', 'All participants unmuted', 'operator');
+  return { result };
+}));
 
 // ── POST /terminate ───────────────────────────────────────────
-router.post('/terminate', async (req, res) => {
+router.post('/terminate', conferenceAction('terminate', async (req) => {
   const { conferenceName } = req.body;
-  try {
-    const result = await terminateConference(conferenceName);
-    logger.info({ action: 'terminate', conferenceName, result });
-
-    await db.addConferenceEvent(conferenceName, 'terminate', 'Conference terminated by operator', 'operator');
-    await db.closeConference(conferenceName, 'operator');
-
-    res.json({ success: true, result });
-  } catch (err) {
-    logger.error({ action: 'terminate', conferenceName, error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  const result = await terminateConference(conferenceName);
+  await db.addConferenceEvent(conferenceName, 'terminate', 'Conference terminated by operator', 'operator');
+  await db.closeConference(conferenceName, 'operator');
+  return { result };
+}));
 
 // ── GET /monitor ──────────────────────────────────────────────
 router.get('/monitor', async (req, res) => {

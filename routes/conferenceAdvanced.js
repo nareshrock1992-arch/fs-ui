@@ -1,65 +1,20 @@
 const express = require('express');
 const router = express.Router();
+const { bgapiResponse } = require('../freeswitch/esl');
 
-const { fsConn } = require('../freeswitch/esl');
-
-router.post('/volume', (req, res) => {
-
-    const { conferenceName, memberId, level } = req.body;
-
-    const cmd = `conference ${conferenceName} volume_in ${memberId} ${level}`;
-
-    fsConn.bgapi(cmd, (reply) => {
-
-        const body = reply.getBody();
-
-        res.json({
-            success: body.startsWith('+OK'),
-            response: body
-        });
-
-    });
-
+router.post('/volume', async (req, res) => {
+  const { conferenceName, memberId, level } = req.body;
+  res.json(await bgapiResponse(`conference ${conferenceName} volume_in ${memberId} ${level}`));
 });
 
-router.post('/lock', (req, res) => {
-
-    const { conferenceName } = req.body;
-
-    const cmd = `conference ${conferenceName} lock`;
-
-    fsConn.bgapi(cmd, (reply) => {
-
-        const body = reply.getBody();
-
-        res.json({
-            success: body.startsWith('+OK'),
-            response: body
-        });
-
-    });
-
+router.post('/lock', async (req, res) => {
+  const { conferenceName } = req.body;
+  res.json(await bgapiResponse(`conference ${conferenceName} lock`));
 });
 
-router.post('/unlock', (req, res) => {
-
-    const { conferenceName } = req.body;
-
-    const cmd = `conference ${conferenceName} unlock`;
-
-console.log("Executing:",cmd);
-  
-  fsConn.bgapi(cmd, (reply) => {
-
-        const body = reply.getBody();
-
-        res.json({
-            success: body.startsWith('+OK'),
-            response: body
-        });
-
-    });
-
+router.post('/unlock', async (req, res) => {
+  const { conferenceName } = req.body;
+  res.json(await bgapiResponse(`conference ${conferenceName} unlock`));
 });
 
 module.exports = router;

@@ -109,6 +109,21 @@ async function query(sql, params = []) {
 // ── Conference operations ─────────────────────────────────────
 
 /**
+ * Return the row id of the currently-active (not ended) conference,
+ * or null if none exists.  Shared helper for recordLeave / recordMute /
+ * addConferenceEvent — eliminates the duplicated SELECT.
+ */
+async function getActiveConferenceId(conferenceName) {
+  const res = await query(
+    `SELECT id FROM conferences
+      WHERE name = $1 AND ended_at IS NULL
+      ORDER BY started_at DESC LIMIT 1`,
+    [conferenceName]
+  );
+  return res.rows[0]?.id ?? null;
+}
+
+/**
  * Find or create an open conference session by name.
  * Returns the full row.
  */
@@ -180,14 +195,8 @@ async function recordJoin(conferenceName, memberId, user) {
 }
 
 async function recordLeave(conferenceName, memberId, wasKicked = false) {
-  const confRes = await query(
-    `SELECT id FROM conferences
-      WHERE name = $1 AND ended_at IS NULL
-      ORDER BY started_at DESC LIMIT 1`,
-    [conferenceName]
-  );
-  if (!confRes.rows.length) return;
-  const confId = confRes.rows[0].id;
+  const confId = await getActiveConferenceId(conferenceName);
+  if (!confId) return;
 
   const partRes = await query(
     `SELECT * FROM participants
@@ -214,14 +223,8 @@ async function recordLeave(conferenceName, memberId, wasKicked = false) {
 }
 
 async function recordMute(conferenceName, memberId, muted) {
-  const confRes = await query(
-    `SELECT id FROM conferences
-      WHERE name = $1 AND ended_at IS NULL
-      ORDER BY started_at DESC LIMIT 1`,
-    [conferenceName]
-  );
-  if (!confRes.rows.length) return;
-  const confId = confRes.rows[0].id;
+  const confId = await getActiveConferenceId(conferenceName);
+  if (!confId) return;
 
   const partRes = await query(
     `SELECT * FROM participants
@@ -263,13 +266,7 @@ async function addEvent(conferenceName, conferenceId, memberId, user, type, deta
 }
 
 async function addConferenceEvent(conferenceName, type, detail, actor) {
-  const confRes = await query(
-    `SELECT id FROM conferences
-      WHERE name = $1 AND ended_at IS NULL
-      ORDER BY started_at DESC LIMIT 1`,
-    [conferenceName]
-  );
-  const confId = confRes.rows[0]?.id || null;
+  const confId = await getActiveConferenceId(conferenceName);
   await addEvent(conferenceName, confId, null, actor || 'operator', type, detail);
 }
 
@@ -385,6 +382,7 @@ module.exports = {
   addEvent,
   addConferenceEvent,
   // read
+  getActiveConferenceId,
   getAllConferences,
   getConferenceById,
   getParticipantsByConference,
