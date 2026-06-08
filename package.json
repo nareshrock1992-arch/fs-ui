@@ -4,7 +4,8 @@
   "description": "FreeSWITCH Dashboard UI",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest --coverage"
   },
   "keywords": [
     "freeswitch",
@@ -23,5 +24,8 @@
     "modesl": "^1.2.1",
     "pg": "^8.21.0",
     "winston": "^3.18.3"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2"
   }
 }
